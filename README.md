@@ -16,4 +16,4 @@ I. Normalization:
 
 
 ******
-found an algorithm "bug", this happens when n = 2 or when there are 2 vertices left, the 4th rule got overwritten by the 1st rule. However, if this is the case, the ordering of the last two placed vertices by the algorithm should not matter (e.g. ....|1|2|... == ....|2|1|...), although this claim needs further confirmation.. -- this has been confirmed, this case happens when the graph is symmetric, i.e. the order doesn't matter, so the assumption is correct
+when n = 2 or when there are 2 vertices left, the 4th rule got overwritten by the 1st rule. However, if this is the case, the ordering of the last two placed vertices by the algorithm should not matter (e.g. ....|1|2|... == ....|2|1|...), although this claim needs further confirmation.. -- Confirmed, this case happens when the graph is symmetric, i.e. the order doesn't matter, so the assumption is correct
