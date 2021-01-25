@@ -20,7 +20,7 @@ when n = 2 or when there are 2 vertices left, the 4th rule got overwritten by th
 
 ******
 For banded matrix (not sure if this is case specific or only applies to the example below), R6 is never reached (overwritten by R5) due to the clique property of gamma(i).
-E.g., one of the banded matrix with entries:
+E.g., one of the banded matrix with entries: <br/>
 from scipy.sparse import diags <br/>
 A = diags([1,1, 1, 0, 1, 1,1], [-3,-2,-1, 0, 1,2,3], shape=(7, 7), dtype=int).toarray() <br/>
 A = <br/>
@@ -32,21 +32,21 @@ A = <br/>
 [0,0,1,1,1,0,1], <br/>
 [0,0,0,1,1,1,0] <br/>
  <br/>
-examples for when gamma(i) is subset of j^uptack for some i but gamma(i) is not a clique:
-1---2
-| \ |
-4---3
-[0,1,1,1],
-[1,0,1,0],
-[1,1,0,1],
-[1,0,1,0]
+examples for when gamma(i) is subset of j^uptack for some i but gamma(i) is not a clique: <br/>
+1---2 <br/>
+| \ | <br/>
+4---3 <br/>
+[0,1,1,1], <br/>
+[1,0,1,0], <br/>
+[1,1,0,1], <br/>
+[1,0,1,0] <br/>
 
-1---2
-| \ |
-3---4
-[0,1,1,1],
-[1,0,0,1],
-[1,0,0,1],
-[1,1,1,0]
+1---2 <br/>
+| \ | <br/>
+3---4 <br/>
+[0,1,1,1], <br/>
+[1,0,0,1], <br/>
+[1,0,0,1], <br/>
+[1,1,1,0]  
 
 Update: after testing banded matrices with any bandwidth size, R6 was never reached. However, when the elmination ordering is used, it produces 0 fills.
