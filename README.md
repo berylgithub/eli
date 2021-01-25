@@ -17,3 +17,36 @@ I. Normalization:
 
 ******
 when n = 2 or when there are 2 vertices left, the 4th rule got overwritten by the 1st rule. However, if this is the case, the ordering of the last two placed vertices by the algorithm should not matter (e.g. ....|1|2|... == ....|2|1|...), although this claim needs further confirmation.. -- Confirmed, this case happens when the graph is symmetric, i.e. the order doesn't matter, so the assumption is correct
+
+******
+For banded matrix (not sure if this is case specific or only applies to the example below), R6 is never reached (overwritten by R5) due to the clique property of gamma(i).
+E.g., one of the banded matrix with entries:
+from scipy.sparse import diags
+A = diags([1,1, 1, 0, 1, 1,1], [-3,-2,-1, 0, 1,2,3], shape=(7, 7), dtype=int).toarray()
+A = 
+[0,1,1,1,0,0,0],
+[1,0,1,1,1,0,0],
+[1,1,0,1,1,1,0],
+[1,1,1,0,1,1,1],
+[0,1,1,1,0,1,1],
+[0,0,1,1,1,0,1],
+[0,0,0,1,1,1,0]
+
+examples for when gamma(i) is subset of j^uptack for some i but gamma(i) is not a clique:
+1---2
+| \ |
+4---3
+[0,1,1,1],
+[1,0,1,0],
+[1,1,0,1],
+[1,0,1,0]
+
+1---2
+| \ |
+3---4
+[0,1,1,1],
+[1,0,0,1],
+[1,0,0,1],
+[1,1,1,0]
+
+Update: after testing banded matrix with any bandwidth size, R6 was never reached. However, when the elmination ordering is used, it produces 0 fills.
