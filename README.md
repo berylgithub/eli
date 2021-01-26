@@ -11,7 +11,7 @@ I. Normalization:
 3. Change the value of n, m, n_2 - DONE
 4. idx should be identical to vertex labeling (in this case of python labeling, idx_i = v_i + 1)
 5. **look at the examples written in the papers from 8-1-2021
-
+6. Still need to fix rule 6
 
 
 
