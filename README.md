@@ -14,7 +14,8 @@ I. Normalization:
 6. Still need to fix rule 6
 7. Interchange R5 and R6 to see the effect of R6
 
-
+II. Separation:
+1. firstzero & lastzero indexer, weight vector, and the graph from Normalization stage are set as input
 
 ******
 when n = 2 or when there are 2 vertices left, the 4th rule got overwritten by the 1st rule. However, if this is the case, the ordering of the last two placed vertices by the algorithm should not matter (e.g. ....|1|2|... == ....|2|1|...), although this claim needs further confirmation.. -- Confirmed, this case happens when the graph is symmetric, i.e. the order doesn't matter, so the assumption is correct
