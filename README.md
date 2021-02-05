@@ -61,3 +61,7 @@ II. Separation:
 III. Combined Normalize + Separate
 1. After separation stage, when going back to normalization, the disconnected/placed node is processed again, due to modified_vector = reset, placed into R3. Will look for alternative fix.
 -- temp fix: maintain a "deleted" vector which contains deleted nodes
+
+After testing using nauru graph, so far eli produces less fill even when considering disconnected part as one whole matrix, the result is as follows:  
+- eli : 58 
+- metis : 69 fills
