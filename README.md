@@ -64,4 +64,4 @@ III. Combined Normalize + Separate
 
 After testing using nauru graph, so far eli produces less fill even when considering disconnected part as one whole matrix, the result is as follows:  
 - eli : 58 
-- metis : 69 fills
+- metis : 69 fills ### Need to be checked further whether the ordering is correct or not: "The ordering file of a graph with n vertices consists of n lines with a single number per line. The ith line of the ordering file contains the new order of the ith vertex of the graph. The numbering in the ordering file starts from 0."
