@@ -58,12 +58,14 @@ II. Separation:
 -- temp fix: check the n_k, 0<=k<=d, d=max distance, in the beginning after finding the true e (end node); add a monotonic increase condition before determining the values of indegrees and outweights: if n_k <= n_{k+1} < n_{k+2}: increase k, and continue (skip iteration)
 3. The n_k <= n_{k+1} < n_{k+2} condition causes error if k+2 >= |n|
 -- temp fix: skip the if block if k+2 >= |n|
-4. if the largest b_i = 0, i = 0 is placed, which is incorrect. This happens when gamma(i) \intersect N_{K=1} = {}, for i \in N_k
+4. if the largest b_i = 0, i = 0 is placed, which is incorrect. This happens when gamma(i) \intersect N_{K=1} = {}, for i \in N_k  
+
 ========================================  
-III. Combined Normalize + Separate
+
+III. Combined Normalize + Separate:
 1. After separation stage, when going back to normalization, the disconnected/placed node is processed again, due to modified_vector = reset, placed into R3. Will look for alternative fix.
 -- temp fix: maintain a "deleted" vector which contains deleted nodes
 
-After testing using nauru graph, so far eli produces less fill even when considering disconnected part as one whole matrix, the result is as follows:  
-- eli : 58 
-- metis : 69 fills ### Need to be checked further whether the ordering is correct or not: "The ordering file of a graph with n vertices consists of n lines with a single number per line. The ith line of the ordering file contains the new order of the ith vertex of the graph. The numbering in the ordering file starts from 0."
+After testing using nauru graph, eli differes in 2 fills:  
+- eli : 58 fills
+- metis : 56 fills ### Need to be checked further whether the ordering is correct or not: "The ordering file of a graph with n vertices consists of n lines with a single number per line. The ith line of the ordering file contains the new order of the ith vertex of the graph. The numbering in the ordering file starts from 0."
