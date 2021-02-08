@@ -56,6 +56,7 @@ II. Separation:
 1. Firstzero & lastzero indexer, weight vector, and the graph from Normalization stage are set as input
 2. "if n_k == 0; break", this condition is always reached in first iteration, due to N_0 = [e], n_0 = 1 and n_0 is decreased within the first loop. Therefore k is never incremented  
 -- temp fix: check the n_k, 0<=k<=d, d=max distance, in the beginning after finding the true e (end node); add a monotonic increase condition before determining the values of indegrees and outweights: if n_k <= n_{k+1} < n_{k+2}: increase k, and continue (skip iteration)
+3. The n_k <= n_{k+1} < n_{k+2} condition causes error if k+2 <= |n|
 
 ========================================  
 III. Combined Normalize + Separate
