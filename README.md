@@ -58,7 +58,7 @@ II. Separation:
 -- temp fix: check the n_k, 0<=k<=d, d=max distance, in the beginning after finding the true e (end node); add a monotonic increase condition before determining the values of indegrees and outweights: if n_k <= n_{k+1} < n_{k+2}: increase k, and continue (skip iteration)
 3. The n_k <= n_{k+1} < n_{k+2} condition causes error if k+2 >= |n|
 -- temp fix: skip the if block if k+2 >= |n|
-4. if the largest b_i = 0, i = 0 is placed, which is incorrect. This happens when gamma(i) \intersect N_{K=1} = {}, for i \in N_k  
+4. if the largest b_i = 0, i = 0 is placed, which is incorrect. This happens when gamma(i) \intersect N_{K=1} = {}, for i \in N_k. If this is skipped, this causes an infinite loop due to the n_k never reaches 0.
 
 ========================================  
 
