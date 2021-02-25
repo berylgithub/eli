@@ -34,8 +34,9 @@ class elimination_ordering_class:
         self.visu = False
         if visualization:
             self.visu = True
-            self.place_loc = np.zeros(e.shape[0]) #if the placement occurs in separatem then set the element as "-1"
-            self.e_rounds = np.zeros(e.shape[0]) #indicate the rounds of which the vertex is eliminated from
+            self.place_loc = np.zeros(n) #if the placement occurs in separatem then set the element as "-1"
+            self.rounds_e = np.zeros(n) #indicate the rounds of which the vertex is eliminated from
+            print(self.rounds_e.shape[0])
             
     '''Normalize Stage'''
     '''preliminaries:
@@ -97,10 +98,14 @@ class elimination_ordering_class:
                         len_e = len(self.e)
                         len_ord_list = len(ordered_list)
                         self.e[len_e + self.last_zero - len_ord_list + 1 : len_e + self.last_zero + 1] = ordered_list #lastzero placement
+                        if self.visu:
+                            self.rounds_e[ordered_list] = self.round
                         self.last_zero -= len_ord_list #decrement last zero by the size of the ordered list 
                     else:
                         #add to the last zero and decrement the indexer:
                         self.e[self.last_zero] = i
+                        if self.visu:
+                            self.rounds_e[i] = self.round
                         self.last_zero -= 1
                     graph[i] = graph[:,i] = 0  #remove from graph by deleting edges
                     self.deleted[i] = True
@@ -114,9 +119,13 @@ class elimination_ordering_class:
                         len_e = len(self.e)
                         len_ord_list = len(ordered_list)
                         self.e[len_e + self.last_zero - len_ord_list + 1 : len_e + self.last_zero + 1] = ordered_list
+                        if self.visu:
+                            self.rounds_e[ordered_list] = self.round
                         self.last_zero -= len_ord_list
                     else:
                         self.e[self.last_zero] = i
+                        if self.visu:
+                            self.rounds_e[i] = self.round
                         self.last_zero -= 1
                     graph[i] = graph[:,i] = 0
                     self.deleted[i] = True
@@ -129,10 +138,14 @@ class elimination_ordering_class:
                         len_e = len(self.e)
                         len_ord_list = len(ordered_list)
                         self.e[self.first_zero : self.first_zero + len_ord_list] = ordered_list #insert by firstzero pos
+                        if self.visu:
+                            self.rounds_e[ordered_list] = self.round
                         self.first_zero += len_ord_list #increment the first zero by the size of the ordered list
                     else:
                         #add to the first zero pos and increment the indexer:
                         self.e[self.first_zero] = i
+                        if self.visu:
+                            self.rounds_e[i] = self.round
                         self.first_zero += 1
                     graph[i] = graph[:,i] = 0
                     self.deleted[i] = True
@@ -145,10 +158,14 @@ class elimination_ordering_class:
                         len_e = len(self.e)
                         len_ord_list = len(ordered_list)
                         self.e[self.first_zero : self.first_zero + len_ord_list] = ordered_list #insert by firstzero pos
+                        if self.visu:
+                            self.rounds_e[ordered_list] = self.round
                         self.first_zero += len_ord_list
                     else:
                         #add to the first zero pos and increment the indexer:
                         self.e[self.first_zero] = i
+                        if self.visu:
+                            self.rounds_e[i] = self.round
                         self.first_zero += 1
                     graph[neighbours[0]][neighbours[1]] = graph[neighbours[1]][neighbours[0]] = 1 #make edge between them -- fill the value of the cell with 1
                     graph[i] = graph[:,i] = 0
@@ -163,12 +180,16 @@ class elimination_ordering_class:
                         len_e = len(self.e)
                         len_ord_list = len(ordered_list)
                         self.e[self.first_zero : self.first_zero + len_ord_list] = ordered_list #insert by firstzero pos
+                        if self.visu:
+                            self.rounds_e[ordered_list] = self.round
                         self.first_zero += len_ord_list
                         #print("place multiple nodes",ordered_list)
                     else:
                         #add to the first zero pos and increment the indexer:
                         #print("place one node")
                         self.e[self.first_zero] = i
+                        if self.visu:
+                            self.rounds_e[i] = self.round
                         self.first_zero += 1
                     graph[i] = graph[:,i] = 0
                     self.deleted[i] = True
@@ -324,10 +345,12 @@ class elimination_ordering_class:
                     self.last_zero -= len_ord_list
                     if self.visu:
                         self.place_loc[ordered_list] = -1
+                        self.rounds_e[ordered_list] = self.round
                 else:
                     self.e[self.last_zero] = placed
                     if self.visu:
                         self.place_loc[placed] = -1
+                        self.rounds_e[placed] = self.round
                     self.last_zero -= 1
                 graph[placed] = graph[:,placed] = 0
                 self.deleted[placed] = True
@@ -384,6 +407,8 @@ class elimination_ordering_class:
             self.round += 1
         return self.e 
          
+    
+    
 '''normalize-helper functions:'''
 #for transforiming tree matrices to ordered list
 def topological_sort_tree(tree_in):
@@ -747,13 +772,14 @@ def grid_generator(p, q, k, p_dep=0, q_dep=0):
 
 if __name__ == "__main__":
     p=5 #grid row
-    q=5 #grid col
+    q=20 #grid col
     grid = grid_generator(p,q,0) #generate grid matrix
     
+    print("grid",grid.shape[0])
     #elimination ordering:
     EO = elimination_ordering_class(grid, visualization=True) #must be on global scope
     e = EO.elimination_ordering(grid)
-    print(e, EO.place_loc)
+    print(e, EO.place_loc, EO.rounds_e)
 
 
 
