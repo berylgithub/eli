@@ -318,13 +318,20 @@ class elimination_ordering_class:
                 #print("gamma_i, N[k+1]",gamma_i, N[k+1])
             #print("b",b)
 
-
+            
+            if (u > 0.4*s) and (n[k+1] < n[k]): #threshold = 0.4s
+                #print("(u > 0.4*s) and (n[k+1] < n[k])",(u > 0.4*s) and (n[k+1] < n[k]))
+                break
+            
+            
             #fourth line:
             while n[k] > 0:
                 #print("n[k]>0",n[k] > 0)
+                '''
                 if (u > 0.4*s) and (n[k+1] < n[k]): #threshold = 0.4s
                     #print("(u > 0.4*s) and (n[k+1] < n[k])",(u > 0.4*s) and (n[k+1] < n[k]))
                     break
+                '''
                 #place i with largest b_i last: (the rule should follow the placement rule in normalization)
                 #new condition to check, when b_i = 0, then break:
                 if np.sum(b) == 0:
