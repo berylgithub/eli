@@ -14,7 +14,7 @@ from scipy.io import mmread, mminfo
 # #### Normalize Stage
 
 class elimination_ordering_class:
-    def __init__(self, graph):
+    def __init__(self, graph, visualization=False):
         '''function for data initialization, returns:
         - e vector placeholder
         - weight vector w
@@ -28,7 +28,15 @@ class elimination_ordering_class:
         self.merge_forest = np.zeros((n,n)) #merge forest for assessment criteria
         self.deleted = np.array([False]*n)
         self.first_zero = 0; self.last_zero = -1
-
+        
+        #for visualization
+        self.round = 0
+        self.visu = False
+        if visualization:
+            self.visu = True
+            self.place_loc = np.zeros(e.shape[0]) #if the placement occurs in separatem then set the element as "-1"
+            self.e_rounds = np.zeros(e.shape[0]) #indicate the rounds of which the vertex is eliminated from
+            
     '''Normalize Stage'''
     '''preliminaries:
     - node == vertex ("vertices" for plural)
@@ -314,8 +322,12 @@ class elimination_ordering_class:
                     len_ord_list = len(ordered_list)
                     self.e[len_e + self.last_zero - len_ord_list + 1 : len_e + self.last_zero + 1] = ordered_list
                     self.last_zero -= len_ord_list
+                    if self.visu:
+                        self.place_loc[ordered_list] = -1
                 else:
                     self.e[self.last_zero] = placed
+                    if self.visu:
+                        self.place_loc[placed] = -1
                     self.last_zero -= 1
                 graph[placed] = graph[:,placed] = 0
                 self.deleted[placed] = True
@@ -348,7 +360,7 @@ class elimination_ordering_class:
     '''Combining both normalize and separate stage'''
     def elimination_ordering(self, graph, log=False):
         #alternate normalize and separate while the graph is not empty
-        i=0
+        #i=0
         while np.sum(graph) > 0:
             if np.sum(graph) == 0:
                 break
@@ -367,8 +379,9 @@ class elimination_ordering_class:
             #print(graph, merge_forest)
             if log:
                 print("==================NEW ROUND======================= \n")
-            print("stage iteration:",i)
-            i += 1
+            print("stage iteration:",self.round)
+            #i += 1
+            self.round += 1
         return self.e 
          
 '''normalize-helper functions:'''
@@ -733,14 +746,14 @@ def grid_generator(p, q, k, p_dep=0, q_dep=0):
 
 
 if __name__ == "__main__":
-    p=10 #grid row
-    q=10 #grid col
+    p=5 #grid row
+    q=5 #grid col
     grid = grid_generator(p,q,0) #generate grid matrix
     
     #elimination ordering:
-    EO = elimination_ordering_class(grid) #must be on global scope
+    EO = elimination_ordering_class(grid, visualization=True) #must be on global scope
     e = EO.elimination_ordering(grid)
-    print(e)
+    print(e, EO.place_loc)
 
 
 
