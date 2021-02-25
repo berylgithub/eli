@@ -36,7 +36,6 @@ class elimination_ordering_class:
             self.visu = True
             self.place_loc = np.zeros(n) #if the placement occurs in separatem then set the element as "-1"
             self.rounds_e = np.zeros(n) #indicate the rounds of which the vertex is eliminated from
-            print(self.rounds_e.shape[0])
             
     '''Normalize Stage'''
     '''preliminaries:
@@ -775,7 +774,6 @@ if __name__ == "__main__":
     q=20 #grid col
     grid = grid_generator(p,q,0) #generate grid matrix
     
-    print("grid",grid.shape[0])
     #elimination ordering:
     EO = elimination_ordering_class(grid, visualization=True) #must be on global scope
     e = EO.elimination_ordering(grid)
