@@ -252,13 +252,13 @@ class elimination_ordering_class:
         M = np.where(distances == d)[0] #set of vertices with max distance from e
         #print("n_init, valencies, e_sep, s, d, M, conn_distances")
         #print(n_init, valencies, e_sep, s, d, M, conn_distances)
-        print("step 2, d, M, s:",d,M,s)
         
         #n_k debugging:
-        n_arr = np.zeros(int(d)+1)
+        n = np.zeros(int(d)+1)
         for i in range(0,int(d)+1):
-            n_arr[i] = np.where(conn_distances == i)[0].shape[0]
-        print("n_k:",n_arr, "\n")
+            n[i] = np.where(conn_distances == i)[0].shape[0]
+        print("step 2, d, M, s:",d,M,s)
+        print("n_k:",n, "\n")
 
         #3, if d'>d, d'=d, pick a vertex from M with max valency, back to 2 if the first e is close to the second e
         loopcount = 0 #for repetition statistics
@@ -281,12 +281,11 @@ class elimination_ordering_class:
             loopcount+=1
             
             #n_k debugging:
-            n_arr = np.zeros(int(d)+1)
+            n = np.zeros(int(d)+1)
             for i in range(0,int(d)+1):
-                n_arr[i] = np.where(conn_distances == i)[0].shape[0]
-                
+                n[i] = np.where(conn_distances == i)[0].shape[0]
             print("step 2, d, M, s:",d,M,s)
-            print("n_k:",n_arr,"\n")
+            print("n_k:",n, "\n")
         #print("RCM loopcount", loopcount)
         #print("n_init, valencies, e_sep, s, d, M, conn_distances")
         #print(n_init, valencies, e_sep, s, d, M, conn_distances)
@@ -295,12 +294,19 @@ class elimination_ordering_class:
 
         #3.5, get the n_k from e, 0<=k<=d, d=max distance, k \in Z
         #print("#3.5: n_k from e, 0<=k<=d, d=max distance")
+        '''
         max_d = np.max(conn_distances).astype(int)
         n_arr = np.zeros(max_d+1)
         for i in range(0,max_d+1):
             n_arr[i] = np.where(conn_distances == i)[0].shape[0]
-        '''temporarily fill all N for visualization:'''
+        '''
         
+        '''temporarily fill all N for visualization:'''
+        N = []
+        for i in range(0, int(d)+1):
+            N.append(np.where(distances == i)[0])
+        #print(N)
+        '''end of N temp'''
         
         #print("n_arr",n_arr)
 
@@ -308,7 +314,11 @@ class elimination_ordering_class:
         #4, initialization of several variables:
         ##NOTE: there are two n's, n_k and n_{k+1}, which will be used for comparison in a condition.
         #print("#4: ")
-        k=0; N=[np.array([e_sep])]; n=[1]; u = s-1; tried = np.array([0]*n_init); tried[e_sep] = 1
+        k=0; 
+        '''temporarily disable blocks below:'''
+        #N=[np.array([e_sep])]; n=[1]; 
+        '''end of cc'''
+        u = s-1; tried = np.array([0]*n_init); tried[e_sep] = 1
 
         seploop = 0
         print("step 4:")
@@ -316,9 +326,11 @@ class elimination_ordering_class:
             print("k =",k)
             #first line:
             #gamma_{k+1}(e):=get neighbours/set of points from e with the distance of k+1
-            N_next = np.where(distances == k+1)[0] #get the set of neighbours with distance = k+1
-            N.append(N_next)
-            n.append(len(N[k+1])) #or sum of weights?
+            '''temporarily disable N and n assignments'''
+            #N_next = np.where(distances == k+1)[0] #get the set of neighbours with distance = k+1
+            #N.append(N_next)
+            #n.append(len(N[k+1])) #or sum of weights?
+            '''end of N and n assignments'''
             u -= n[k+1]
             #print("k,N,n,u",k,N,n,u)
 
@@ -329,7 +341,7 @@ class elimination_ordering_class:
                 if (n_arr[k] <= n_arr[k+1] < n_arr[k+2]):
                     k += 1
                     continue'''
-            if (k < d-1) and (n_arr[k] <= n_arr[k+1] < n_arr[k+2]) and (u > 0.4*s): #another fix, by adding more skip-conditions
+            if (k < d-1) and (n[k] <= n[k+1] < n[k+2]) and (u > 0.4*s): #another fix, by adding more skip-conditions
                 k += 1
                 print("(k < d-1) and (n[k] <= n[k+1] < n[k+2]) and (u > 0.4*s) condition reached, increment k")
                 continue
@@ -378,8 +390,7 @@ class elimination_ordering_class:
                 
             #transform vertex index to coordinate:
             #flatten N<k + N_k + N_k+1 + N>k+1:
-            Ns = list(chain.from_iterable([Nbk, list(N[k]), list(N[k+1]), Nak]))
-            print(Ns)
+            
             A = np.zeros((self.p, self.q)) #matrix color placeholder
             #fill color on coordinate:
             for i in range(self.p*self.q):
