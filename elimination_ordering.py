@@ -7,6 +7,11 @@ import numpy as np
 from scipy.special import comb
 from itertools import combinations
 from scipy.io import mmread, mminfo
+from itertools import chain
+
+#for grid drawing only:
+import matplotlib.pyplot as plt
+from matplotlib import colors
 
 
 # ### Start of Elimination Ordering.
@@ -14,7 +19,7 @@ from scipy.io import mmread, mminfo
 # #### Normalize Stage
 
 class elimination_ordering_class:
-    def __init__(self, graph, visualization=False):
+    def __init__(self, graph, visualization=False, p=0, q=0):
         '''function for data initialization, returns:
         - e vector placeholder
         - weight vector w
@@ -37,6 +42,11 @@ class elimination_ordering_class:
             self.place_loc = np.zeros(n) #if the placement occurs in separatem then set the element as "-1"
             self.rounds_e = np.zeros(n) #indicate the rounds of which the vertex is eliminated from
             
+        #for grid information only:
+        self.p = p #row
+        self.q = q #col
+        
+            
     '''Normalize Stage'''
     '''preliminaries:
     - node == vertex ("vertices" for plural)
@@ -53,6 +63,7 @@ class elimination_ordering_class:
 
     #normalize stage:
     def normalize(self, graph):
+        print("\n++++ Normalization Stage ++++")
         #global deleted, e, w, first_zero, last_zero, merge_forest
         n = n_init = graph.shape[0] #number of nodes
         '''e = np.array([-1]*n) #for now the placeholder is an array of -1
@@ -68,6 +79,8 @@ class elimination_ordering_class:
         while np.sum(modified) > 0:
             #print()
             #for i in range(n_init):
+            print("++ new normalization cycle ++")
+            print("++ i, n, valency, m ++")
             for i in range(n_init):
                 #check if it is already deleted, if yes, skip:
                 if self.deleted[i]: #deleted in prev round
@@ -79,7 +92,6 @@ class elimination_ordering_class:
                 #recalculate all of the values:
                 n = get_total_nodes(graph, n_init) #recalculate n by excluding zero vectored rows (disconnected vertices)
                 valencies = np.array([np.sum(graph[j]) for j in range(n_init)]) #needs to recalculate the valency for each update due to the graph-change
-                #print(i,n,m,valency,valencies,e,modified)
                 mean_valency = np.sum(valencies)/n #get mean valency
                 max_valency = np.max(valencies) #get max valency
                 valency = np.sum(graph[i]) #get vertex's valency
@@ -88,6 +100,7 @@ class elimination_ordering_class:
                 #print("mean_valency, np.floor(n**(1/4) + 3)",mean_valency, np.floor(n**(1/4) + 3))
                 neighbours = np.where(graph[i] == 1)[0] #get the neighbours of i
                 #print(i,n,m,valency,e,np.sum(modified),first_zero, last_zero)
+                print(i, n, valency, m)
                 #print("neighbours",neighbours)
                 #check all of the conditions based on the valency
                 if valency == n-1:
@@ -111,7 +124,7 @@ class elimination_ordering_class:
                     #graph = np.delete(graph, i, 0) #delete from graph -- this should be the proper deletion method, though not sure if it's faster
                     #graph = np.delete(graph, i, 1)
                     modified[neighbours] = 1 #set neighbours as modified
-                    #print("rule 1")
+                    print("rule 1, place",i,"last")
                 elif (valency > np.ceil(n/2)) and (valency == max_valency):
                     if self.w[i] > 1:
                         ordered_list = get_ordered_list_merged_vertex(self.merge_forest, i)
@@ -129,7 +142,7 @@ class elimination_ordering_class:
                     graph[i] = graph[:,i] = 0
                     self.deleted[i] = True
                     modified[neighbours] = 1
-                    #print("rule 2")
+                    print("rule 2, place",i,"last")
                 elif valency <= 1:
                     #e.insert(0, i) #place vertex first
                     if self.w[i] > 1:
@@ -149,7 +162,7 @@ class elimination_ordering_class:
                     graph[i] = graph[:,i] = 0
                     self.deleted[i] = True
                     modified[neighbours] = 1
-                    #print("rule 3")
+                    print("rule 3, place",i,"first")
                 elif valency == 2:
                     #e.insert(0, i)
                     if self.w[i] > 1:
@@ -170,7 +183,7 @@ class elimination_ordering_class:
                     graph[i] = graph[:,i] = 0
                     self.deleted[i] = True
                     modified[neighbours] = 1
-                    #print("rule 4")
+                    print("rule 4, place",i,"first")
                 elif (valency <= m) and (clique_check(graph, neighbours)):
                     #e.insert(0, i)
                     if self.w[i] > 1:
@@ -193,7 +206,7 @@ class elimination_ordering_class:
                     graph[i] = graph[:,i] = 0
                     self.deleted[i] = True
                     modified[neighbours] = 1
-                    #print("rule 5")
+                    print("rule 5, place",i,"first")
                 elif (valency <= m): 
                     bool_subset, j_node = check_subset(graph, neighbours) #gamma(i) \subset j^uptack, j \in gamma(i)
                     if bool_subset:
@@ -202,10 +215,13 @@ class elimination_ordering_class:
                         graph[i] = graph[:,i] = 0
                         self.deleted[i] = True
                         modified[neighbours] = 1
-                        #print("rule 6")
+                        print("rule 6, merged",i ,"to",j_node)
                         #print(neighbours, modified[neighbours])
-                        #print("merged",i,j_node)
                 modified[i] = 0 #set vertex as unmodified
+                print()
+            print("current e_vector:",self.e)
+            print()
+
                 #print("w,deleted",w[i],np.where(deleted == True)[0])
                 #print()
         #return e, w, first_zero, last_zero, merge_forest
@@ -214,16 +230,17 @@ class elimination_ordering_class:
     '''Separate Stage'''
     def separate(self, graph):
         #global deleted, e, w, first_zero, last_zero, merge_forest
+        print("\n---- Separation stage ----")
         n_init = graph.shape[0] #actual graph size
 
         '''RCM part'''
         #1, d=0, pick vertex e with max valency:
-        #print("#1: ")
         d_prime = 0
         #n_nodes = get_total_nodes(graph, graph.shape[0]) #current total nodes
         valencies = np.array([np.sum(graph[i]) for i in range(n_init)])
         e_sep = np.argmax(valencies) #get the node with max valency
-
+        print("step 1, e, valency[e]:", e_sep, valencies[e_sep], "\n")
+        
         #2, need to find a set of M with max distansce from e, which requires BFS or djikstra:
         #print("#2: ")
         distances, _ = dijkstra_shortest_path(graph, e_sep)
@@ -235,12 +252,19 @@ class elimination_ordering_class:
         M = np.where(distances == d)[0] #set of vertices with max distance from e
         #print("n_init, valencies, e_sep, s, d, M, conn_distances")
         #print(n_init, valencies, e_sep, s, d, M, conn_distances)
-
+        print("step 2, d, M, s:",d,M,s)
+        
+        #n_k debugging:
+        n_arr = np.zeros(int(d)+1)
+        for i in range(0,int(d)+1):
+            n_arr[i] = np.where(conn_distances == i)[0].shape[0]
+        print("n_k:",n_arr, "\n")
 
         #3, if d'>d, d'=d, pick a vertex from M with max valency, back to 2 if the first e is close to the second e
-        #print("#3: ")
         loopcount = 0 #for repetition statistics
         while d>d_prime:
+            print("step 3: ")
+            print("d > d', goto 2\n")
             #print("d, d_prime, e_sep",d, d_prime, e_sep)
             d_prime = d
             max_vertex,_ = get_max_valency(M, valencies)
@@ -255,6 +279,14 @@ class elimination_ordering_class:
             d = np.max(conn_distances) #max distance from e
             M = np.where(distances == d)[0] #set of vertices with max distance from e
             loopcount+=1
+            
+            #n_k debugging:
+            n_arr = np.zeros(int(d)+1)
+            for i in range(0,int(d)+1):
+                n_arr[i] = np.where(conn_distances == i)[0].shape[0]
+                
+            print("step 2, d, M, s:",d,M,s)
+            print("n_k:",n_arr,"\n")
         #print("RCM loopcount", loopcount)
         #print("n_init, valencies, e_sep, s, d, M, conn_distances")
         #print(n_init, valencies, e_sep, s, d, M, conn_distances)
@@ -267,6 +299,9 @@ class elimination_ordering_class:
         n_arr = np.zeros(max_d+1)
         for i in range(0,max_d+1):
             n_arr[i] = np.where(conn_distances == i)[0].shape[0]
+        '''temporarily fill all N for visualization:'''
+        
+        
         #print("n_arr",n_arr)
 
 
@@ -276,7 +311,9 @@ class elimination_ordering_class:
         k=0; N=[np.array([e_sep])]; n=[1]; u = s-1; tried = np.array([0]*n_init); tried[e_sep] = 1
 
         seploop = 0
+        print("step 4:")
         while True:
+            print("k =",k)
             #first line:
             #gamma_{k+1}(e):=get neighbours/set of points from e with the distance of k+1
             N_next = np.where(distances == k+1)[0] #get the set of neighbours with distance = k+1
@@ -293,8 +330,8 @@ class elimination_ordering_class:
                     k += 1
                     continue'''
             if (k < d-1) and (n_arr[k] <= n_arr[k+1] < n_arr[k+2]) and (u > 0.4*s): #another fix, by adding more skip-conditions
-                #print("(k < d-1) and (n_arr[k] <= n_arr[k+1] < n_arr[k+2]) and (u > 0.4*s) condition reached")
                 k += 1
+                print("(k < d-1) and (n[k] <= n[k+1] < n[k+2]) and (u > 0.4*s) condition reached, increment k")
                 continue
 
             #second line, determining "in degrees":
@@ -320,11 +357,71 @@ class elimination_ordering_class:
 
             
             if (u > 0.4*s) and (n[k+1] < n[k]): #threshold = 0.4s
-                #print("(u > 0.4*s) and (n[k+1] < n[k])",(u > 0.4*s) and (n[k+1] < n[k]))
+                print("(u > 0.4*s) and (n[k+1] < n[k]) reached, breaking loop")
                 break
+            
+            '''display grid here'''
+            '''in step 4 before the inner while loop a display
+            of the vertices as a p x q gray image - encode distances <k,k,k+1,>k+1
+            as light gray, black, dark gray, white. You can stop the algorithm
+            after the first round; then larger instances can be created.'''
+            print("****grid display:")
+            print("grid for k =",k)
+            Nbk = []; Nak = []
+            
+            Nbk = list(chain.from_iterable(N[:k]))
+            #print("n",n)
+            try: 
+                Nak = list(chain.from_iterable(N[k+2:]))
+            except:
+                print("n[k+2] unreachable")
+                
+            #transform vertex index to coordinate:
+            #flatten N<k + N_k + N_k+1 + N>k+1:
+            Ns = list(chain.from_iterable([Nbk, list(N[k]), list(N[k+1]), Nak]))
+            print(Ns)
+            A = np.zeros((self.p, self.q)) #matrix color placeholder
+            #fill color on coordinate:
+            for i in range(self.p*self.q):
+                vertex_id = i
+                x_idx = vertex_id%self.q
+                y_idx = int(vertex_id/self.q)
+                #fill color on x_idx, y_idx:
+                if vertex_id in Nbk:
+                    #print(x_idx, y_idx, "light gray")
+                    A[y_idx, x_idx] = 1
+                elif vertex_id in N[k]:
+                    #print(x_idx, y_idx, "black")
+                    A[y_idx, x_idx] = 2
+                elif vertex_id in N[k+1]:
+                    #print(x_idx, y_idx, "darkgray")
+                    A[y_idx, x_idx] = 3
+                elif vertex_id in Nak:
+                    #print(x_idx, y_idx, "white")
+                    A[y_idx, x_idx] = 4
+                #else:
+                    #print(x_idx, y_idx, "blue")
+            #print(A)
+            data = A+0.5 #for colouring purpose, the range is between discrete numbers
+            #print(data)
+            # create discrete colormap
+            colours = ['blue', '#d3d3d3','black','#A9A9A9', 'white']
+            cmap = colors.ListedColormap(colours)
+            bounds = np.arange(0, len(colours)+1, 1)
+            norm = colors.BoundaryNorm(bounds, cmap.N)
+            fig, ax = plt.subplots()
+            ax.imshow(data, cmap=cmap, norm=norm, origin="upper")
+            # draw gridlines
+            ax.grid(which='major', axis='both', linestyle='-', color='k', linewidth=2)
+            ax.set_xticks(np.arange(-.5, self.q, 1));
+            ax.set_yticks(np.arange(-.5, self.p, 1));
+            plt.show()
+            print("****end of grid display")
+            '''end of grid display'''
             
             
             #fourth line:
+            print("while n_k > 0: ")
             while n[k] > 0:
                 #print("n[k]>0",n[k] > 0)
                 '''
@@ -335,10 +432,10 @@ class elimination_ordering_class:
                 #place i with largest b_i last: (the rule should follow the placement rule in normalization)
                 #new condition to check, when b_i = 0, then break:
                 if np.sum(b) == 0:
-                    #print("b_i all zero")
+                    print("all b_i are zero, break loop")
                     #print("k,d,b,c",k,d,b,c)
                     break
-                #
+                
                 placed = np.argmax(b)
                 #print("placed",placed)
                 ##start of temporary fix
@@ -361,6 +458,7 @@ class elimination_ordering_class:
                 graph[placed] = graph[:,placed] = 0
                 self.deleted[placed] = True
                 b[placed] = 0 #remove from b
+                print("largest b_i =",placed,", placed",placed,"last")
                 #print("e,fz,lz after placement:",e,first_zero,last_zero)
                 #decrement s, n_k, c_j:
                 #print("s,n[k],c",s,n[k],c)
@@ -374,12 +472,18 @@ class elimination_ordering_class:
                         N[k+1] = N[k+1][N[k+1] != node_j] #drop cj from N
                         u += 1; n[k+1] -= 1
                         #print("N, u, n, c[node_j]",N, u, n, c[node_j])
-            if n[k] == 0: ##NOTE: this part is a little bit uncanny, since in first iter the n[k] will always reach 0
+                        print("drop c_j = 0, j =",node_j)
+            
+            if n[k] == 0: 
+                print("n_k = 0, break")
                 break
             tried[N[k]] = 1; k += 1 #mark all i \in N_k as tried, increment k
+            print("increment k, k =",k)
             seploop+=1
             #print("\n seploop",seploop)
-
+        print("end of while n_k > 0")
+        print("current e_vector:", self.e)
+        print()
         #print(e)
         #return graph, e, w, first_zero, last_zero, merge_forest
         #return first_zero, last_zero
@@ -391,6 +495,8 @@ class elimination_ordering_class:
         #alternate normalize and separate while the graph is not empty
         #i=0
         while np.sum(graph) > 0:
+            print("===================================")
+            print(">>>> Round Iteration",self.round,":")
             if np.sum(graph) == 0:
                 break
             if log:
@@ -408,8 +514,10 @@ class elimination_ordering_class:
             #print(graph, merge_forest)
             if log:
                 print("==================NEW ROUND======================= \n")
-            print("stage iteration:",self.round)
             #i += 1
+            
+            '''for visualization purpose:'''
+            break
             self.round += 1
         return self.e 
          
@@ -760,7 +868,7 @@ def grid_generator(p, q, k, p_dep=0, q_dep=0):
         p = q
     elif p_dep == 2:
         p = q**2
-    print('p,q,k',p,q,k)
+    #print('p,q',p,q)
     grid = np.zeros((p*q, p*q)) #grid matrix
     diag = np.ones(q)
     sub_grid = np.zeros((q,q))
@@ -778,13 +886,13 @@ def grid_generator(p, q, k, p_dep=0, q_dep=0):
 
 if __name__ == "__main__":
     p=5 #grid row
-    q=20 #grid col
+    q=5 #grid col
     grid = grid_generator(p,q,0) #generate grid matrix
     
     #elimination ordering:
-    EO = elimination_ordering_class(grid, visualization=True) #must be on global scope
+    EO = elimination_ordering_class(grid, visualization=True, p=p, q=q) #must be on global scope
     e = EO.elimination_ordering(grid)
-    print(e, EO.place_loc, EO.rounds_e)
+    #print(e, EO.place_loc, EO.rounds_e)
 
 
 
