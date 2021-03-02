@@ -27,8 +27,10 @@ def visu():
 def generate_iperm():
     ndpath = "matrices/grid/ndmetis_input/"
     gridpath = "matrices/grid/grids/"
-    ps = [2,5,10,15,20]
-    qs = [p**2 for p in ps]
+    #ps = [2,5,10,15,20]
+    #qs = [p**2 for p in ps]
+    qs = list(range(1,21))
+    ps = [5]*len(qs)
     for i in range(len(ps)):
         p = ps[i]; q = qs[i]
         grid = eo.grid_generator(p,q,0)
@@ -40,7 +42,8 @@ def generate_iperm():
         eo.adj_mat_to_metis_file(grid, ndpath+fname+".grid.metisgraph")
     #save grid sizes (p,q):
     data = {"p":ps, "q":qs}
-    with open(gridpath+str(len(ps))+"_grids_sizes.info", 'wb') as fp:
+    date = "02032021"
+    with open(gridpath+str(len(ps))+"_"+date+"_grids_sizes.info", 'wb') as fp:
         pickle.dump(data, fp)
     
     
@@ -80,13 +83,13 @@ def computation():
         p,q = str_pq.split('_'); p,q = (int(p), int(q)); ps.append(p); qs.append(q)
         #rather than loading grids from disk, it'll be more space efficient if we just re-generate the grids in memory
         grid = eo.grid_generator(p,q,0)
-        print("grid_shape",grid.shape)
+        print("\ngrid_shape",grid.shape)
         vertices = grid.shape[0]
         edges = np.sum(grid[np.triu_indices(grid.shape[0], 1)]) #sum of upper triangular
         nv.append(vertices); ne.append(edges)
         #elimination ordering:
         start = time.time()
-        EO = eo.elimination_ordering_class(grid, visualization=False) #must be on global scope
+        EO = eo.elimination_ordering_class(grid, visualization=False, p=p, q=q) #must be on global scope
         e = EO.elimination_ordering(grid)
         es.append(e)
         end = time.time()
@@ -138,13 +141,13 @@ def computation():
             "max_C_metis": max_C_metis,
             "max_K_metis":max_K_metis
         }
-        with open(rootpath+'grid_pqsqr_26022021.jt.p', 'wb') as fp:
+        with open(rootpath+'grid_pqincr_02032021.jt.p', 'wb') as fp:
             pickle.dump(data, fp)    
-        with open(rootpath+'grid_pqsqr_26022021.jt.p', 'rb') as fp:
+        with open(rootpath+'grid_pqincr_02032021.jt.p', 'rb') as fp:
             data = pickle.load(fp)
             print(data)
     
 if __name__ == '__main__':
     #generate_iperm()
-    #computation()
-    visu()
+    computation()
+    #visu()
