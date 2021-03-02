@@ -326,221 +326,257 @@ class elimination_ordering_class:
         u[0] = s - n[0]
         for i in range(1,d):
             u[i] = u[i-1] - n[i]
-        print("u_k:",u)
         min_diff = np.inf
         min_idx = None
         threshold = s/2
+
         for i in range(d):
             diff = np.abs(u[i] - threshold)
             if diff < min_diff:
                 min_diff = diff
                 min_idx = i
-        print("k_0 = ",min_idx)
         
-        #3.8, find k in {k0-1,k0,k0+1}\cap{1:d-1} with smallest n_k:
-        n_candidates = n[np.intersect1d([min_idx - 1, min_idx, min_idx + 1], np.array(range(1,d)))]
-        k = np.argmin(n_candidates)
-        print("n_candidates, k:",n_candidates, k)
+        
+        #3.8, find k in {k0-1,k0,k0+1}\cap{1:d-1} with smallest n_k OR largest (n_{k+1} - n_k):
+        cap = np.intersect1d([min_idx - 1, min_idx, min_idx + 1], np.array(range(1,d)))
+        
+        
+        #smalles n_k:
+        n_candidates = n[cap]
+        idx = np.argmin(n_candidates)
+        k = cap[idx]
+        
+        '''
+        #largest n_{k+1} - n_k:
+        n_candidates = [np.abs(n[c+1]-n[c]) for c in cap]
+        idx = np.argmax(n_candidates)
+        k = cap[idx]
+        '''
+        
+        if self.round < 1:
+            print("u_k =",u)
+            print("s/2 =",threshold)
+            print("k0 = ",min_idx)
+            print("n_candidates (k in {k_0-1,k_0,k_0+1}\cap{1:d-1} with smallest n_k) =",n_candidates)
+            #print("n_candidates (k in {k_0-1,k_0,k_0+1}\cap{1:d-1} with largest n_{k+1} - n_k) =",n_candidates)
+            print("k =",k)
         #4, initialization of several variables:
         ##NOTE: there are two n's, n_k and n_{k+1}, which will be used for comparison in a condition.
         #print("#4: ")
          
         '''temporarily disable blocks below:'''
         #k=0;
-        #N=[np.array([e_sep])]; n=[1]; 
+        #N=[np.array([e_sep])]; n=[1]; u = s-1;
         '''end of cc'''
-        u = s-1; tried = np.array([0]*n_init); tried[e_sep] = 1
+        tried = np.array([0]*n_init); tried[e_sep] = 1
 
         seploop = 0
         if self.round < 1:
             print("step 4:")
+        '''
+        #disable while loop
         while True:
-            if self.round < 1:
-                print("k =",k)
-            #first line:
-            #gamma_{k+1}(e):=get neighbours/set of points from e with the distance of k+1
-            '''temporarily disable N and n assignments'''
-            #N_next = np.where(distances == k+1)[0] #get the set of neighbours with distance = k+1
-            #N.append(N_next)
-            #n.append(len(N[k+1])) #or sum of weights?
-            '''end of N and n assignments'''
-            u -= n[k+1]
-            #print("k,N,n,u",k,N,n,u)
-
-            #print("n_arr[k] <= n_arr[k+1] < n_arr[k+2]",n_arr[k] <= n_arr[k+1] < n_arr[k+2])
-
-            #print("k+2, len(n_arr), d",k+2, len(n_arr), d)
-            '''if k+2 < len(n_arr): #temporary fix, by skipping the block if k+2 >= len(n)
-                if (n_arr[k] <= n_arr[k+1] < n_arr[k+2]):
-                    k += 1
-                    continue'''
-            if (k < d-1) and (n[k] <= n[k+1] < n[k+2]) and (u > 0.4*s): #another fix, by adding more skip-conditions
-                k += 1
-                if self.round < 1:
-                    print("(k < d-1) and (n[k] <= n[k+1] < n[k+2]) and (u > 0.4*s) condition reached, increment k")
-                continue
-
-            #second line, determining "in degrees":
-            #c = {} #need to know which c corresponds to which node, so probably use a dictionary
-            c = np.zeros(n_init)
-            #j_idxs = N[k+1] #to keep track the used node indexes
-            for node_j in N[k+1]: #indexing not by nodes' indices, but by c's internal index
-                gamma_j = np.where(graph[node_j] == 1)[0]
-                c[node_j] = (np.intersect1d(gamma_j, N[k])).shape[0]
-                #print("gamma_j, N[k]",gamma_j, N[k])
-            #print("c[j_idxs]",c[j_idxs])
-
-            #third line, determining the "out-weights" (weights from normalization stage):
-            #b = {} #same reason with c
-            b = np.zeros(n_init)
-            #i_idxs = N[k]
-            for node_i in N[k]:
-                gamma_i = np.where(graph[node_i] == 1)[0]
-                out_w_nodes = np.intersect1d(gamma_i, N[k+1])
-                b[node_i] = np.sum(self.w[out_w_nodes]) #w = weights from normalization, need to know which value belongs to which
-                #print("gamma_i, N[k+1]",gamma_i, N[k+1])
-            #print("b",b)
-
-            
-            if (u > 0.4*s) and (n[k+1] < n[k]): #threshold = 0.4s
-                if self.round < 1:
-                    print("(u > 0.4*s) and (n[k+1] < n[k]) reached, breaking loop")
-                break
-            
-            '''display grid here'''
-            '''in step 4 before the inner while loop a display
-            of the vertices as a p x q gray image - encode distances <k,k,k+1,>k+1
-            as light gray, black, dark gray, white. You can stop the algorithm
-            after the first round; then larger instances can be created.'''
-            if self.round < 1:
-                print("****grid display:")
-                print("grid for k =",k)
-                Nbk = []; Nak = []
-
-                Nbk = list(chain.from_iterable(N[:k]))
-                #print("n",n)
-                try: 
-                    Nak = list(chain.from_iterable(N[k+2:]))
-                except:
-                    print("n[k+2] unreachable")
-
-                #transform vertex index to coordinate:
-                #flatten N<k + N_k + N_k+1 + N>k+1:
-
-                A = np.zeros((self.p, self.q)) #matrix color placeholder
-                #fill color on coordinate:
-                for i in range(self.p*self.q):
-                    vertex_id = i
-                    x_idx = vertex_id%self.q
-                    y_idx = int(vertex_id/self.q)
-                    #fill color on x_idx, y_idx:
-                    if vertex_id in Nbk:
-                        #print(x_idx, y_idx, "light gray")
-                        A[y_idx, x_idx] = 1
-                    elif vertex_id in N[k]:
-                        #print(x_idx, y_idx, "black")
-                        A[y_idx, x_idx] = 2
-                    elif vertex_id in N[k+1]:
-                        #print(x_idx, y_idx, "darkgray")
-                        A[y_idx, x_idx] = 3
-                    elif vertex_id in Nak:
-                        #print(x_idx, y_idx, "white")
-                        A[y_idx, x_idx] = 4
-                    #else:
-                        #print(x_idx, y_idx, "blue")
-                #print(A)
-                data = A+0.5 #for colouring purpose, the range is between discrete numbers
-                #print(data)
-                # create discrete colormap
-                colours = ['blue', '#d3d3d3','black','#A9A9A9', 'white']
-                cmap = colors.ListedColormap(colours)
-                bounds = np.arange(0, len(colours)+1, 1)
-                norm = colors.BoundaryNorm(bounds, cmap.N)
-                fig, ax = plt.subplots()
-                ax.imshow(data, cmap=cmap, norm=norm, origin="upper")
-                # draw gridlines
-                ax.grid(which='major', axis='both', linestyle='-', color='k', linewidth=2)
-                ax.set_xticks(np.arange(-.5, self.q, 1));
-                ax.set_yticks(np.arange(-.5, self.p, 1));
-                plt.show()
-                print("****end of grid display")
-            '''end of grid display'''
-            
-            
-            #fourth line:
-            if self.round < 1:
-                print("while n_k > 0: ")
-            while n[k] > 0:
-                #print("n[k]>0",n[k] > 0)
-                '''
-                if (u > 0.4*s) and (n[k+1] < n[k]): #threshold = 0.4s
-                    #print("(u > 0.4*s) and (n[k+1] < n[k])",(u > 0.4*s) and (n[k+1] < n[k]))
-                    break
-                '''
-                #place i with largest b_i last: (the rule should follow the placement rule in normalization)
-                #new condition to check, when b_i = 0, then break:
-                if np.sum(b) == 0:
-                    if self.round < 1:
-                        print("all b_i are zero, break loop")
-                    #print("k,d,b,c",k,d,b,c)
-                    break
-                
-                placed = np.argmax(b)
-                #print("placed",placed)
-                ##start of temporary fix
-                #if b[placed] > 0: #meaning, gamma(i) \intersect N_{k+1} is not {}
-                if self.w[placed] > 1:
-                    ordered_list = get_ordered_list_merged_vertex(self.merge_forest, placed)
-                    len_e = len(self.e)
-                    len_ord_list = len(ordered_list)
-                    self.e[len_e + self.last_zero - len_ord_list + 1 : len_e + self.last_zero + 1] = ordered_list
-                    self.last_zero -= len_ord_list
-                    if self.visu:
-                        self.place_loc[ordered_list] = -1
-                        self.rounds_e[ordered_list] = self.round
-                else:
-                    self.e[self.last_zero] = placed
-                    if self.visu:
-                        self.place_loc[placed] = -1
-                        self.rounds_e[placed] = self.round
-                    self.last_zero -= 1
-                graph[placed] = graph[:,placed] = 0
-                self.deleted[placed] = True
-                b[placed] = 0 #remove from b
-                if self.round < 1:
-                    print("largest b_i =",placed,", placed",placed,"last")
-                #print("e,fz,lz after placement:",e,first_zero,last_zero)
-                #decrement s, n_k, c_j:
-                #print("s,n[k],c",s,n[k],c)
-                s -= 1; n[k] -= 1; c[N[k+1]] -= 1
-                ##end of temporary fix#
-                #print("s,n[k],c",s,n[k],c)
-                #if c_j == 0: ......
-                #drop c_j from N; incr u; decr n[k+1]:
-                for node_j in N[k+1]:
-                    if c[node_j] == 0:
-                        N[k+1] = N[k+1][N[k+1] != node_j] #drop cj from N
-                        u += 1; n[k+1] -= 1
-                        #print("N, u, n, c[node_j]",N, u, n, c[node_j])
-                        if self.round < 1:
-                            print("drop c_j = 0, j =",node_j)
-            
-            if n[k] == 0: 
-                if self.round < 1:
-                    print("n_k = 0, break")
-                break
-            tried[N[k]] = 1; k += 1 #mark all i \in N_k as tried, increment k
-            if self.round < 1:
-                print("increment k, k =",k)
-            seploop+=1
-            #print("\n seploop",seploop)
+        '''
         if self.round < 1:
-            print("end of while n_k > 0")
+            print("k =",k)
+        #first line:
+        #gamma_{k+1}(e):=get neighbours/set of points from e with the distance of k+1
+        '''temporarily disable N and n assignments'''
+        #N_next = np.where(distances == k+1)[0] #get the set of neighbours with distance = k+1
+        #N.append(N_next)
+        #n.append(len(N[k+1])) #or sum of weights?
+        '''end of N and n assignments'''
+        u -= n[k+1]
+        #print("k,N,n,u",k,N,n,u)
+
+        #print("n_arr[k] <= n_arr[k+1] < n_arr[k+2]",n_arr[k] <= n_arr[k+1] < n_arr[k+2])
+
+        #print("k+2, len(n_arr), d",k+2, len(n_arr), d)
+        '''
+        if k+2 < len(n_arr): #temporary fix, by skipping the block if k+2 >= len(n)
+            if (n_arr[k] <= n_arr[k+1] < n_arr[k+2]):
+                k += 1
+                continue
+        '''
+        
+        '''
+        #disable while loop:
+        if (k < d-1) and (n[k] <= n[k+1] < n[k+2]) and (u > 0.4*s): #another fix, by adding more skip-conditions
+            k += 1
+            if self.round < 1:
+                print("(k < d-1) and (n[k] <= n[k+1] < n[k+2]) and (u > 0.4*s) condition reached, increment k")
+            continue
+        '''
+        
+
+        #second line, determining "in degrees":
+        #c = {} #need to know which c corresponds to which node, so probably use a dictionary
+        c = np.zeros(n_init)
+        #j_idxs = N[k+1] #to keep track the used node indexes
+        for node_j in N[k+1]: #indexing not by nodes' indices, but by c's internal index
+            gamma_j = np.where(graph[node_j] == 1)[0]
+            c[node_j] = (np.intersect1d(gamma_j, N[k])).shape[0]
+            #print("gamma_j, N[k]",gamma_j, N[k])
+        #print("c[j_idxs]",c[j_idxs])
+
+        #third line, determining the "out-weights" (weights from normalization stage):
+        #b = {} #same reason with c
+        b = np.zeros(n_init)
+        #i_idxs = N[k]
+        for node_i in N[k]:
+            gamma_i = np.where(graph[node_i] == 1)[0]
+            out_w_nodes = np.intersect1d(gamma_i, N[k+1])
+            b[node_i] = np.sum(self.w[out_w_nodes]) #w = weights from normalization, need to know which value belongs to which
+            #print("gamma_i, N[k+1]",gamma_i, N[k+1])
+        #print("b",b)
+
+        
+        '''
+        #disable while loop
+        if (u > 0.4*s) and (n[k+1] < n[k]): #threshold = 0.4s
+            if self.round < 1:
+                print("(u > 0.4*s) and (n[k+1] < n[k]) reached, breaking loop")
+            break
+        '''
+        
+        '''display grid here'''
+        '''in step 4 before the inner while loop a display
+        of the vertices as a p x q gray image - encode distances <k,k,k+1,>k+1
+        as light gray, black, dark gray, white. You can stop the algorithm
+        after the first round; then larger instances can be created.'''
+        if self.round < 1:
+            print("****grid display:")
+            print("grid for k =",k)
+            Nbk = []; Nak = []
+
+            Nbk = list(chain.from_iterable(N[:k]))
+            #print("n",n)
+            try: 
+                Nak = list(chain.from_iterable(N[k+2:]))
+            except:
+                print("n[k+2] unreachable")
+
+            #transform vertex index to coordinate:
+            #flatten N<k + N_k + N_k+1 + N>k+1:
+
+            A = np.zeros((self.p, self.q)) #matrix color placeholder
+            #fill color on coordinate:
+            for i in range(self.p*self.q):
+                vertex_id = i
+                x_idx = vertex_id%self.q
+                y_idx = int(vertex_id/self.q)
+                #fill color on x_idx, y_idx:
+                if vertex_id in Nbk:
+                    #print(x_idx, y_idx, "light gray")
+                    A[y_idx, x_idx] = 1
+                elif vertex_id in N[k]:
+                    #print(x_idx, y_idx, "black")
+                    A[y_idx, x_idx] = 2
+                elif vertex_id in N[k+1]:
+                    #print(x_idx, y_idx, "darkgray")
+                    A[y_idx, x_idx] = 3
+                elif vertex_id in Nak:
+                    #print(x_idx, y_idx, "white")
+                    A[y_idx, x_idx] = 4
+                #else:
+                    #print(x_idx, y_idx, "blue")
+            #print(A)
+            data = A+0.5 #for colouring purpose, the range is between discrete numbers
+            #print(data)
+            # create discrete colormap
+            colours = ['blue', '#d3d3d3','black','#A9A9A9', 'white']
+            cmap = colors.ListedColormap(colours)
+            bounds = np.arange(0, len(colours)+1, 1)
+            norm = colors.BoundaryNorm(bounds, cmap.N)
+            fig, ax = plt.subplots()
+            ax.imshow(data, cmap=cmap, norm=norm, origin="upper")
+            # draw gridlines
+            ax.grid(which='major', axis='both', linestyle='-', color='k', linewidth=2)
+            ax.set_xticks(np.arange(-.5, self.q, 1));
+            ax.set_yticks(np.arange(-.5, self.p, 1));
+            plt.show()
+            print("****end of grid display")
+        '''end of grid display'''
+        
+        
+        #fourth line:
+        if self.round < 1:
+            print("while n_k > 0: ")
+        while n[k] > 0:
+            #print("n[k]>0",n[k] > 0)
+            '''
+            if (u > 0.4*s) and (n[k+1] < n[k]): #threshold = 0.4s
+                #print("(u > 0.4*s) and (n[k+1] < n[k])",(u > 0.4*s) and (n[k+1] < n[k]))
+                break
+            '''
+            #place i with largest b_i last: (the rule should follow the placement rule in normalization)
+            #new condition to check, when b_i = 0, then break:
+            if np.sum(b) == 0:
+                if self.round < 1:
+                    print("all b_i are zero, break loop")
+                #print("k,d,b,c",k,d,b,c)
+                break
+            
+            placed = np.argmax(b)
+            #print("placed",placed)
+            ##start of temporary fix
+            #if b[placed] > 0: #meaning, gamma(i) \intersect N_{k+1} is not {}
+            if self.w[placed] > 1:
+                ordered_list = get_ordered_list_merged_vertex(self.merge_forest, placed)
+                len_e = len(self.e)
+                len_ord_list = len(ordered_list)
+                self.e[len_e + self.last_zero - len_ord_list + 1 : len_e + self.last_zero + 1] = ordered_list
+                self.last_zero -= len_ord_list
+                if self.visu:
+                    self.place_loc[ordered_list] = -1
+                    self.rounds_e[ordered_list] = self.round
+            else:
+                self.e[self.last_zero] = placed
+                if self.visu:
+                    self.place_loc[placed] = -1
+                    self.rounds_e[placed] = self.round
+                self.last_zero -= 1
+            graph[placed] = graph[:,placed] = 0
+            self.deleted[placed] = True
+            b[placed] = 0 #remove from b
+            if self.round < 1:
+                print("largest b_i =",placed,", placed",placed,"last")
+            #print("e,fz,lz after placement:",e,first_zero,last_zero)
+            #decrement s, n_k, c_j:
+            #print("s,n[k],c",s,n[k],c)
+            s -= 1; n[k] -= 1; c[N[k+1]] -= 1
+            ##end of temporary fix#
+            #print("s,n[k],c",s,n[k],c)
+            #if c_j == 0: ......
+            #drop c_j from N; incr u; decr n[k+1]:
+            for node_j in N[k+1]:
+                if c[node_j] == 0:
+                    N[k+1] = N[k+1][N[k+1] != node_j] #drop cj from N
+                    u += 1; n[k+1] -= 1
+                    #print("N, u, n, c[node_j]",N, u, n, c[node_j])
+                    if self.round < 1:
+                        print("drop c_j = 0, j =",node_j)
+        
+        '''
+        #disable while loop
+        if n[k] == 0: 
+            if self.round < 1:
+                print("n_k = 0, break")
+            break
+        '''
+        tried[N[k]] = 1 #mark all i \in N_k as tried
+        
+        '''
+        #disable while loop
+        k += 1 #, increment k
+        '''
+        
+        if self.round < 1:
+            print("increment k, k =",k)
+        seploop+=1
+        if self.round < 1:
             print("current e_vector:", self.e)
             print()
-        #print(e)
-        #return graph, e, w, first_zero, last_zero, merge_forest
-        #return first_zero, last_zero
                 #break #for loop breaking purpose during tests -- removed on actual scenario
             #break #for loop breaking purpose during tests -- removed on actual scenario
 
@@ -948,6 +984,6 @@ if __name__ == "__main__":
     EO = elimination_ordering_class(grid, visualization=True, p=p, q=q) #must be on global scope
     e = EO.elimination_ordering(grid)
     print(e, EO.place_loc, EO.rounds_e)
-
-
-
+    grid = grid_generator(p,q,0) #generate grid matrix
+    fills,_ = eliminate(grid, e)
+    print("fills = ",fills)
