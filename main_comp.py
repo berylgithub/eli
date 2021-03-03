@@ -141,9 +141,9 @@ def computation():
             "max_C_metis": max_C_metis,
             "max_K_metis":max_K_metis
         }
-        with open(rootpath+'grid_pqincr_02032021.jt.p', 'wb') as fp:
+        with open(rootpath+'grid_pqincr_ndiff_02032021.jt.p', 'wb') as fp:
             pickle.dump(data, fp)    
-        with open(rootpath+'grid_pqincr_02032021.jt.p', 'rb') as fp:
+        with open(rootpath+'grid_pqincr_ndiff_02032021.jt.p', 'rb') as fp:
             data = pickle.load(fp)
             print(data)
     
