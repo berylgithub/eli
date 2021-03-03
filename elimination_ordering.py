@@ -51,6 +51,9 @@ class elimination_ordering_class:
         self.R_counters = np.zeros(6) #each index is for each rule, Ri = R_counters_{i-1}
         self.R_strings = [] #to be printed at the end of normalize stage
             
+        #specialized for separate stage visualization:
+        self.separate_placed_rounds = []
+        
     '''Normalize Stage'''
     '''preliminaries:
     - node == vertex ("vertices" for plural)
@@ -133,8 +136,9 @@ class elimination_ordering_class:
                     modified[neighbours] = 1 #set neighbours as modified
                     if self.visu and self.round < 1:
                         self.R_strings.append(str(i)+" "+ str(n)+" "+ str(valency)+" "+ str(m)+ "||rule 1, place "+str(i)+" last")
-                        self.R_counters[0] += 1
                         self.R_switch = True
+                    if self.visu:
+                        self.R_counters[0] += 1
                 elif (valency > np.ceil(n/2)) and (valency == max_valency):
                     if self.w[i] > 1:
                         ordered_list = get_ordered_list_merged_vertex(self.merge_forest, i)
@@ -154,8 +158,9 @@ class elimination_ordering_class:
                     modified[neighbours] = 1
                     if self.visu and self.round < 1:
                         self.R_strings.append(str(i)+" "+ str(n)+" "+ str(valency)+" "+ str(m)+ "||rule 2, place "+str(i)+" last")
-                        self.R_counters[1] += 1
                         self.R_switch = True
+                    if self.visu:
+                        self.R_counters[1] += 1
                 elif valency <= 1:
                     #e.insert(0, i) #place vertex first
                     if self.w[i] > 1:
@@ -177,8 +182,9 @@ class elimination_ordering_class:
                     modified[neighbours] = 1
                     if self.visu and self.round < 1:
                         self.R_strings.append(str(i)+" "+ str(n)+" "+ str(valency)+" "+ str(m)+ "||rule 3, place "+str(i)+" first")
-                        self.R_counters[2] += 1
                         self.R_switch = True
+                    if self.visu:
+                        self.R_counters[2] += 1
                 elif valency == 2:
                     #e.insert(0, i)
                     if self.w[i] > 1:
@@ -201,8 +207,9 @@ class elimination_ordering_class:
                     modified[neighbours] = 1
                     if self.visu and self.round < 1:
                         self.R_strings.append(str(i)+" "+ str(n)+" "+ str(valency)+" "+ str(m)+ "||rule 4, place "+str(i)+" first")
-                        self.R_counters[3] += 1
                         self.R_switch = True
+                    if self.visu:
+                        self.R_counters[3] += 1
                 elif (valency <= m) and (clique_check(graph, neighbours)):
                     #e.insert(0, i)
                     if self.w[i] > 1:
@@ -227,8 +234,9 @@ class elimination_ordering_class:
                     modified[neighbours] = 1
                     if self.visu and self.round < 1:
                         self.R_strings.append(str(i)+" "+ str(n)+" "+ str(valency)+" "+ str(m)+ "||rule 5, place "+str(i)+" first")
-                        self.R_counters[4] += 1
                         self.R_switch = True
+                    if self.visu:
+                        self.R_counters[4] += 1
                 elif (valency <= m): 
                     bool_subset, j_node = check_subset(graph, neighbours) #gamma(i) \subset j^uptack, j \in gamma(i)
                     if bool_subset:
@@ -239,8 +247,9 @@ class elimination_ordering_class:
                         modified[neighbours] = 1
                         if self.visu and self.round < 1:
                             self.R_strings.append(str(i)+" "+ str(n)+" "+ str(valency)+" "+ str(m)+ "||rule 6, merged"+str(i)+"to"+str(j_node))
-                            self.R_counters[5] += 1
                             self.R_switch = True
+                        if self.visu:
+                            self.R_counters[5] += 1
                 modified[i] = 0 #set vertex as unmodified
         
             #print per cycle here:
@@ -257,6 +266,10 @@ class elimination_ordering_class:
         #global deleted, e, w, first_zero, last_zero, merge_forest
         if self.visu and self.round < 1:
             print("\n---- Separation stage ----")
+            
+        if self.visu:
+            separate_placed_round = 0
+            
         n_init = graph.shape[0] #actual graph size
 
         '''RCM part'''
@@ -547,11 +560,13 @@ class elimination_ordering_class:
                 if self.visu:
                     self.place_loc[ordered_list] = -1
                     self.rounds_e[ordered_list] = self.round
+                    separate_placed_round += len_ord_list
             else:
                 self.e[self.last_zero] = placed
                 if self.visu:
                     self.place_loc[placed] = -1
                     self.rounds_e[placed] = self.round
+                    separate_placed_round += 1
                 self.last_zero -= 1
             graph[placed] = graph[:,placed] = 0
             self.deleted[placed] = True
@@ -588,6 +603,8 @@ class elimination_ordering_class:
         #disable while loop
         k += 1 #, increment k
         '''
+        if self.visu:
+            self.separate_placed_rounds.append(separate_placed_round)
         
         if self.visu and self.round < 1:
             print("increment k, k =",k)
@@ -601,11 +618,13 @@ class elimination_ordering_class:
         #alternate normalize and separate while the graph is not empty
         #i=0
         while np.sum(graph) > 0:
+            
             '''for visu:'''
             if self.visu and self.round < 1:
                 print("===================================")
                 print(">>>> Round Iteration",self.round,":")
             '''end of visu'''
+            
             if np.sum(graph) == 0:
                 break
             if log:
@@ -636,7 +655,23 @@ class elimination_ordering_class:
             #i += 1
             
             self.round += 1
-        return self.e 
+        
+        if self.visu:
+            #print the total number of times each rule happens from normalize stage for all rounds:
+            self.R_counters = self.R_counters.astype(np.int64, copy=False)          
+            print("Total number of times each rule in Normalize stage is effective for all rounds:")
+            for i in range(self.R_counters.shape[0]):
+                print("Rule",i+1,": ",self.R_counters[i],"times")
+            #print the total placed vertices in separate stage per round
+            if len(self.separate_placed_rounds) > 0:
+                print("Total number of vertices placed in Separate stage per round:")
+                for i,r in enumerate(self.separate_placed_rounds):
+                    print("Round",i+1,":",r,"vertices")
+                
+        if self.visu:
+            return (self.e, self.R_counters, self.separate_placed_rounds)
+        else:
+            return self.e 
          
     
     
@@ -1008,7 +1043,7 @@ if __name__ == "__main__":
     
     #elimination ordering:
     EO = elimination_ordering_class(grid, visualization=True, p=p, q=q) #must be on global scope
-    e = EO.elimination_ordering(grid)
+    e,R_counters,separate_placed_rounds = EO.elimination_ordering(grid)
     print(e, EO.place_loc, EO.rounds_e)
     grid = grid_generator(p,q,0) #generate grid matrix
     fills,_ = eliminate(grid, e)
