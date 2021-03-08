@@ -34,6 +34,10 @@ class elimination_ordering_class:
         self.deleted = np.array([False]*n)
         self.first_zero = 0; self.last_zero = -1
         
+        #for grid information only:
+        self.p = p #row
+        self.q = q #col
+        
         #for visualization
         self.round = 0
         self.visu = False
@@ -42,17 +46,16 @@ class elimination_ordering_class:
             self.place_loc = np.zeros(n) #if the placement occurs in separate then set the element as "-1"
             self.rounds_e = np.zeros(n) #indicate the rounds of which the vertex is eliminated from
             
-        #for grid information only:
-        self.p = p #row
-        self.q = q #col
+            #specialized for normalize stage visualization:
+            self.R_switch = False #true if sum(R_counters) >= 0 
+            self.R_counters = np.zeros(6) #each index is for each rule, Ri = R_counters_{i-1}
+            self.R_strings = [] #to be printed at the end of normalize stage
+                
+            #specialized for separate stage visualization:
+            self.separate_placed_rounds = []
         
-        #specialized for normalize stage visualization:
-        self.R_switch = False #true if sum(R_counters) >= 0 
-        self.R_counters = np.zeros(6) #each index is for each rule, Ri = R_counters_{i-1}
-        self.R_strings = [] #to be printed at the end of normalize stage
-            
-        #specialized for separate stage visualization:
-        self.separate_placed_rounds = []
+            #for separator display visualization:
+            self.Nks = [] #list of separator indexes per round for all rounds
         
     '''Normalize Stage'''
     '''preliminaries:
@@ -549,7 +552,9 @@ class elimination_ordering_class:
             data = A+0.5 #for colouring purpose, the range is between discrete numbers
             #print(data)
             # create discrete colormap
-            colours = ['blue', '#d3d3d3','black','#A9A9A9', 'white']
+            colours = ['blue', '#d3d3d3','black','#A9A9A9', 'white'] 
+            #colours = ['blue', '#d3d3d3',(0.1, 0.2, 0.5),'#A9A9A9', 'white']
+            print("RGBA", colors.to_rgba('blue', alpha=None))
             cmap = colors.ListedColormap(colours)
             bounds = np.arange(0, len(colours)+1, 1)
             norm = colors.BoundaryNorm(bounds, cmap.N)
@@ -563,6 +568,10 @@ class elimination_ordering_class:
             print("****end of grid display")
         '''end of grid display'''
         
+        
+        '''grid separator data for display at the end of algorithm'''
+        self.Nks.append(N[k])
+        '''end of data for display'''
         
 #        #fourth line:
 #        if self.visu and self.round < 1:
@@ -1072,20 +1081,75 @@ def grid_generator(p, q, k, p_dep=0, q_dep=0):
         grid[i*q:(i*q)+q, i*q:(i*q)+q] = sub_grid
     return grid
 
-
+def generate_separator_display(p,q,Nks):
+    '''
+    p = gridrow
+    q = col
+    Nks = separators
     
+    display grids and the separator colours by increasing (R,G,B) per iteration
+    '''
+    length = len(Nks)
+    A = np.zeros((p,q))+length #matrix color placeholder (white)
+    norm_val = np.arange(0, length+1, 1) #discrete [0, length + 1] \in Z
+    print(norm_val)
+    #fill color on coordinate:
+    for i in range(p*q):
+        vertex_id = i
+        x_idx = vertex_id%q
+        y_idx = int(vertex_id/q)
+        #fill color on x_idx, y_idx:
+        for j in range(length):
+            if vertex_id in Nks[j]:
+                A[y_idx, x_idx] = norm_val[j]
+    
+
+    offset = 0.5
+    A += offset
+    print(A)
+    max_whiteness = 0.75
+    colours = np.linspace(0, max_whiteness, length) #from black to gray-ish
+    colours = [(col, col, col, 1) for col in colours] + [(1,1,1,1)] #discrete colormap, with alpha=1
+    cmap = colors.ListedColormap(colours)
+    bounds = np.arange(0, len(colours)+1, 1)
+    norm = colors.BoundaryNorm(bounds, cmap.N)
+    fig, ax = plt.subplots()
+    ax.imshow(A, cmap=cmap, norm=norm, origin="upper")
+    # draw gridlines
+    ax.grid(which='major', axis='both', linestyle='-', color='k', linewidth=2)
+    ax.set_xticks(np.arange(-.5, q, 1));
+    ax.set_yticks(np.arange(-.5, p, 1));
+    plt.show()
+    
+    
+    print(colours, bounds)
+    '''
+    # create discrete colormap
+    colours = ['blue', '#d3d3d3','black','#A9A9A9', 'white'] 
+    cmap = colors.ListedColormap(colours)
+    bounds = np.arange(0, len(colours)+1, 1)
+    norm = colors.BoundaryNorm(bounds, cmap.N)
+    fig, ax = plt.subplots()
+    ax.imshow(data, cmap=cmap, norm=norm, origin="upper")
+    # draw gridlines
+    ax.grid(which='major', axis='both', linestyle='-', color='k', linewidth=2)
+    ax.set_xticks(np.arange(-.5, q, 1));
+    ax.set_yticks(np.arange(-.5, p, 1));
+    plt.show()
+    print("****end of grid display")
+    '''
 
 
 if __name__ == "__main__":
-    p=5 #grid row
-    q=25 #grid col
+    p=6 #grid row
+    q=36 #grid col
     grid = grid_generator(p,q,0) #generate grid matrix
     
     #elimination ordering:
     EO = elimination_ordering_class(grid, visualization=True, p=p, q=q) #must be on global scope
     e,R_counters,separate_placed_rounds = EO.elimination_ordering(grid)
-    print(e, EO.place_loc, EO.rounds_e)
+    print("e, EO.place_loc, EO.rounds_e", e, EO.place_loc, EO.rounds_e)
     grid = grid_generator(p,q,0) #generate grid matrix
     fills,_ = eliminate(grid, e)
     print("fills = ",fills)
-    print(len(set(e)) == len(e))
+    generate_separator_display(p,q,EO.Nks)
