@@ -282,8 +282,8 @@ class elimination_ordering_class:
         #1, d=0, pick vertex e with max valency:
         d_prime = 0
         #n_nodes = get_total_nodes(graph, graph.shape[0]) #current total nodes
-        valencies = np.array([len(graph[i]) for i in range(n_init)]) #this probably need to be replaced, since the order is not preserved
-        e_sep = np.argmax(valencies) #get the node with max valency
+        valencies = np.array([len(graph[i]) for i in graph.nodes]) #array of valency, not ordered monotonicly increasing, there maybe cutoff somewhere
+        e_sep = list(graph.nodes)[np.argmax(valencies)] #get the node with max valency
         if self.visu and self.round < 1:
             print("step 1, e, valency[e]:", e_sep, valencies[e_sep])
         
@@ -306,7 +306,7 @@ class elimination_ordering_class:
                 print("d > d', goto 2")
             #print("d, d_prime, e_sep",d, d_prime, e_sep)
             d_prime = d
-            max_vertex,_ = get_max_valency(M, valencies)
+            max_vertex,_ = get_max_valency(list(graph.nodes), M, valencies) #probably need to be replaced, because valencies indexes doesnt correspond to full valency of nodes
             #print("M, valencies",M, valencies)
             e_sep = max_vertex
 
@@ -541,46 +541,17 @@ class elimination_ordering_class:
          
 '''separate stage helper'''
 '''dijkstra https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm''' 
-#function to help djikstra algorithm:
-def get_min_distance_vertex(Q, distances):
-    min_dist = float("inf")
-    min_v = None
-    for v in range(Q.shape[0]):
-        if (distances[v] < min_dist) and (Q[v] == 1):
-            min_dist = distances[v]
-            min_v = v
-    return min_dist, min_v
-
-#start of dijkstra algorithm:
-def dijkstra_shortest_path(graph, source):
-    #n_init = get_total_nodes(graph, graph.shape[0])
-    n_init = graph.shape[0]
-    Q = np.array([1]*n_init)
-    #print(Q)
-    #source = root = 0
-    distances = np.array([float("inf")]*n_init) #set distance vector
-    distances[source] = 0
-    prev = np.array([None]*n_init)
-
-    while np.sum(Q) > 0:
-        _, u = get_min_distance_vertex(Q, distances) #get the vertex with minimum distance
-        Q[u] = False #remove u from Q
-        neighbours = np.where(graph[u] == 1)[0]
-#        print("len(Q), neighbours",len(Q), neighbours)
-        for v in neighbours:
-            if Q[v] == 1:
-                alt = distances[u] + graph[u][v] #distance is equal to the weight of the edge between u and v
-                if alt < distances[v]:
-                    distances[v] = alt
-                    prev[v] = u
-                #print(alt)
-    return distances, prev
 
 #function to find max valency from nodes
-def get_max_valency(subset_nodes, valencies):
+def get_max_valency(nodes, subset_nodes, valencies):
     max_valency = -float("inf")
     max_vertex = None
+    #get index of subset nodes in the full nodes:
+    m_idx = []
     for m in subset_nodes:
+        m_idx.append(nodes.index(m))
+    #sorting:
+    for m in m_idx:
         if valencies[m] > max_valency:
             max_valency = valencies[m]
             max_vertex = m
@@ -713,4 +684,7 @@ if __name__ == "__main__":
     grid.remove_nodes_from([3,4,5])
     l = nx.single_source_shortest_path_length(grid, 7)
     print(l)
-    print([d for d in l if l[d]%2==0])
+    print(list(grid.nodes)[3])
+    
+    print(get_max_valency([0,1,2,3,6,7,8], [6,8], [1,2,2,2,5,3,2]))
+    
