@@ -30,11 +30,11 @@ class elimination_ordering_class:
         - first zero and last zero idxes
         - deleted bool array
         '''
-        n = graph.shape[0]
-        self.e = np.array([-1]*n) #for now the placeholder is an array of -1
-        self.w = np.array([1]*n) #weight vector for merge forest
-        self.merge_forest = np.zeros((n,n)) #merge forest for assessment criteria
-        self.deleted = np.array([False]*n)
+        self.n = graph.number_of_nodes() #initial graph size, usable for static vectors
+        self.e = np.array([-1]*self.n) #for now the placeholder is an array of -1
+        self.w = np.array([1]*self.n) #weight vector for merge forest
+        self.merge_forest = np.zeros((self.n,self.n)) #merge forest for assessment criteria
+        self.deleted = np.array([False]*self.n)
         self.first_zero = 0; self.last_zero = -1
         
         #for grid information only:
@@ -46,8 +46,8 @@ class elimination_ordering_class:
         self.visu = False
         if visualization:
             self.visu = True
-            self.place_loc = np.zeros(n) #if the placement occurs in separate then set the element as "-1"
-            self.rounds_e = np.zeros(n) #indicate the rounds of which the vertex is eliminated from
+            self.place_loc = np.zeros(self.n) #if the placement occurs in separate then set the element as "-1"
+            self.rounds_e = np.zeros(self.n) #indicate the rounds of which the vertex is eliminated from
             
             #specialized for normalize stage visualization:
             self.R_switch = False #true if sum(R_counters) >= 0 
@@ -276,7 +276,7 @@ class elimination_ordering_class:
         if self.visu:
             separate_placed_round = 0
             
-        n_init = graph.number_of_nodes() #actual graph size
+        n_init = graph.number_of_nodes() #actual graph size after eliminations (if happened before this)
 
         '''RCM part'''
         #1, d=0, pick vertex e with max valency:
@@ -331,7 +331,7 @@ class elimination_ordering_class:
         N = []
         n = np.zeros(d+1)
         for i in range(0, d+1):
-            N.append(np.where(distances == i)[0])
+            N.append([k for k,v in distances.items() if v==i])
             n[i] = len(N[i])
         if self.visu and self.round < 1:
             print("step 4, n_k:",n)
@@ -365,14 +365,13 @@ class elimination_ordering_class:
             print("step 6, k=",k)
         
 
-        tried = np.array([0]*n_init); tried[e_sep] = 1
+        #tried = np.array([0]*self.n); tried[e_sep] = 1 #is this still usable?
         
         #step 8: compute the b_i for i\in N_k, sort N_k in increasing order of b_i:
-        b = np.zeros(n_init)
+        b = np.zeros(self.n)
         #i_idxs = N[k]
         for node_i in N[k]:
-            gamma_i = np.where(graph[node_i] == 1)[0]
-            out_w_nodes = np.intersect1d(gamma_i, N[k+1])
+            out_w_nodes = np.intersect1d(graph[node_i], N[k+1])
             b[node_i] = np.sum(self.w[out_w_nodes]) #w = weights from normalization, need to know which value belongs to which
             #print("gamma_i, N[k+1]",gamma_i, N[k+1])
         sorted_b_Nk_idx = np.argsort(b[N[k]])
@@ -681,10 +680,11 @@ def grid_generator(p, q):
 
 if __name__ == "__main__":
     grid = grid_generator(3,3)
-    grid.remove_nodes_from([3,4,5])
+    print(grid.number_of_nodes())
+    #grid.remove_nodes_from([3,4,5])
     l = nx.single_source_shortest_path_length(grid, 7)
-    print(l)
-    print(list(grid.nodes)[3])
+    print(l, l.items())
+    print([k for k,v in l.items() if v==10])
+    #print(list(grid.nodes)[3])
     
     print(get_max_valency([0,1,2,3,6,7,8], [6,8], [1,2,2,2,5,3,2]))
-    
