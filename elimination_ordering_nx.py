@@ -286,8 +286,7 @@ class elimination_ordering_class:
         #n_nodes = get_total_nodes(graph, graph.shape[0]) #current total nodes
         '''valency calculation must be done in the very first step'''
         #valencies = np.array([len(graph[i]) for i in graph.nodes]) #array of valency, not ordered monotonicly (not contiguous) increasing, there maybe cutoff somewhere
-        e_sep = list(graph.nodes)[np.argmax(self.valencies)] #get the node with max valency
-        print(self.valencies, np.argmax(self.valencies), list(graph.nodes))
+        e_sep = np.argmax(self.valencies) #get the node with max valency immediately since valencies is contiguous
         if self.visu and self.round < 1:
             print("step 1, e, valency[e]:", e_sep, self.valencies[e_sep])
         
@@ -310,7 +309,7 @@ class elimination_ordering_class:
                 print("d > d', goto 2")
             #print("d, d_prime, e_sep",d, d_prime, e_sep)
             d_prime = d
-            max_vertex,_ = get_max_valency(list(graph.nodes), M, valencies) #probably need to be replaced, because valencies indexes doesnt correspond to full valency of nodes
+            max_vertex,_ = get_max_valency(list(graph.nodes), M, self.valencies) #probably need to be replaced, because valencies indexes doesnt correspond to full valency of nodes
             #print("M, valencies",M, valencies)
             e_sep = max_vertex
 
@@ -699,12 +698,9 @@ if __name__ == "__main__":
     #print(list(grid.nodes)[3])
     print(get_max_valency([0,1,2,3,6,7,8], [6,8], [1,2,2,2,5,3,2]))
     '''
+
     
-    grid = grid_generator(4,4)
-    print(grid.adj[0])
-    print(grid.adj)
-    
-    
-#    EONX = elimination_ordering_class(grid, visualization=True)
-#    EONX.separate(grid)
-#    print(EONX.e)
+    grid = grid_generator(7,7)
+    EONX = elimination_ordering_class(grid, visualization=True)
+    EONX.separate(grid)
+    print(EONX.e)
