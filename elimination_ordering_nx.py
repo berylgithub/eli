@@ -37,6 +37,8 @@ class elimination_ordering_class:
         self.deleted = np.array([False]*self.n)
         self.first_zero = 0; self.last_zero = -1
         
+        '''calculate the valencies early, so that within the stages there will be no valencies re-calculation:'''
+        self.valencies = np.array([len(graph[i]) for i in graph.nodes])
         #for grid information only:
         self.p = p #row
         self.q = q #col
@@ -282,10 +284,12 @@ class elimination_ordering_class:
         #1, d=0, pick vertex e with max valency:
         d_prime = 0
         #n_nodes = get_total_nodes(graph, graph.shape[0]) #current total nodes
-        valencies = np.array([len(graph[i]) for i in graph.nodes]) #array of valency, not ordered monotonicly increasing, there maybe cutoff somewhere
-        e_sep = list(graph.nodes)[np.argmax(valencies)] #get the node with max valency
+        '''valency calculation must be done in the very first step'''
+        #valencies = np.array([len(graph[i]) for i in graph.nodes]) #array of valency, not ordered monotonicly (not contiguous) increasing, there maybe cutoff somewhere
+        e_sep = list(graph.nodes)[np.argmax(self.valencies)] #get the node with max valency
+        print(self.valencies, np.argmax(self.valencies), list(graph.nodes))
         if self.visu and self.round < 1:
-            print("step 1, e, valency[e]:", e_sep, valencies[e_sep])
+            print("step 1, e, valency[e]:", e_sep, self.valencies[e_sep])
         
         #2, need to find a set of M with max distansce from e, which requires BFS or djikstra:
         #print("#2: ")
@@ -375,7 +379,7 @@ class elimination_ordering_class:
             b[node_i] = np.sum(self.w[out_w_nodes]) #w = weights from normalization, need to know which value belongs to which
             #print("gamma_i, N[k+1]",gamma_i, N[k+1])
         sorted_b_Nk_idx = np.argsort(b[N[k]])
-        sorted_Nk = N[k][sorted_b_Nk_idx]
+        sorted_Nk = [N[k][i] for i in sorted_b_Nk_idx]
         if self.visu and self.round < 1:
             print("step 8:")
             print("all b_i :",b)
@@ -404,7 +408,7 @@ class elimination_ordering_class:
                     self.last_zero -= 1
                     if self.visu and self.round < 1:
                         print("placed",i,"last")
-                graph[i] = graph[:,i] = 0
+                graph.remove_node(i)
                 self.deleted[i] = True
         
         '''display grid here'''
@@ -474,7 +478,7 @@ class elimination_ordering_class:
         self.Nks.append(N[k])
         '''end of data for display'''
         
-        tried[N[k]] = 1 #mark all i \in N_k as tried
+        #tried[N[k]] = 1 #mark all i \in N_k as tried
         if self.visu:
             self.separate_placed_rounds.append(separate_placed_round)
 
@@ -543,6 +547,9 @@ class elimination_ordering_class:
 
 #function to find max valency from nodes
 def get_max_valency(nodes, subset_nodes, valencies):
+    '''
+    O(m*n) work instead of O(n) of the previous version
+    '''
     max_valency = -float("inf")
     max_vertex = None
     #get index of subset nodes in the full nodes:
@@ -557,6 +564,15 @@ def get_max_valency(nodes, subset_nodes, valencies):
     return max_vertex, max_valency
 '''end of helper'''
 
+'''normalize-helper functions:'''
+def get_ordered_list_merged_vertex(forest, placed_vertex):
+    '''get ordered list from the placed vertex.
+    the idea is to traverse using BFS from the root (placed_vertex) all the way to the very first merged vertex,
+    returns the reversed BFS result
+    '''
+    ordered_list = list(nx.bfs_edges(forest, placed_vertex))
+    ordered_list = [placed_vertex] + [v for u,v in ordered_list]
+    return list(reversed(ordered_list))
 
 
 '''============== Utilities =============='''
@@ -582,7 +598,7 @@ def eliminate(graph, elimination_order, join_tree=False):
         if len(fill_idxs) > 0:
             for fill in fill_idxs:
                 if not graph.has_edge(fill[0], fill[1]):
-                    grid.add_edge(fill[0], fill[1]) #add fill
+                    graph.add_edge(fill[0], fill[1]) #add fill
                     count_fill += 1
         graph.remove_node(v) #eliminate v
     return_data = None
@@ -664,21 +680,16 @@ def load_matrix_market(filename):
 def grid_generator(p, q):
     '''p*q grid generator, p = row, q = col
     '''
-    grid = nx.Graph()
-    last_q_idx = np.zeros(q) #lowest row grid vertices
-    last_q_idx[0] = p*q - q
-    for i in (1,q-1):
-        last_q_idx[i] = last_q_idx[i-1] + 1
-    for i in range(p*q - 1):
-        if (i+1) %q == 0: #if on the rightest edge
-            grid.add_edge(i,i+q)
-        elif i in last_q_idx: #if on the lowest edge
-            grid.add_edge(i,i+1)
-        else:
-            grid.add_edges_from([(i, i+1),(i, i+q)])
+    grid = nx.grid_graph((p,q)) #generate lattice grid
+    mapping = {}
+    for x in range(q):
+        for y in range(q):
+            mapping[(x,y)] = x*q + y
+    grid = nx.relabel_nodes(grid, mapping)
     return grid
 
 if __name__ == "__main__":
+    '''
     grid = grid_generator(3,3)
     print(grid.number_of_nodes())
     #grid.remove_nodes_from([3,4,5])
@@ -686,5 +697,14 @@ if __name__ == "__main__":
     print(l, l.items())
     print([k for k,v in l.items() if v==10])
     #print(list(grid.nodes)[3])
-    
     print(get_max_valency([0,1,2,3,6,7,8], [6,8], [1,2,2,2,5,3,2]))
+    '''
+    
+    grid = grid_generator(4,4)
+    print(grid.adj[0])
+    print(grid.adj)
+    
+    
+#    EONX = elimination_ordering_class(grid, visualization=True)
+#    EONX.separate(grid)
+#    print(EONX.e)
