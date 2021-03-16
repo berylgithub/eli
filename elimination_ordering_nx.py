@@ -33,12 +33,14 @@ class elimination_ordering_class:
         self.n = graph.number_of_nodes() #initial graph size, usable for static vectors
         self.e = np.array([-1]*self.n) #for now the placeholder is an array of -1
         self.w = np.array([1]*self.n) #weight vector for merge forest
-        self.merge_forest = np.zeros((self.n,self.n)) #merge forest for assessment criteria
+        self.merge_forest = nx.Graph() #merge forest for merging procedures
         self.deleted = np.array([False]*self.n)
         self.first_zero = 0; self.last_zero = -1
         
         '''calculate the valencies early, so that within the stages there will be no valencies re-calculation:'''
-        self.valencies = np.array([len(graph[i]) for i in graph.nodes])
+        self.valencies = np.array([len(graph[i]) for i in graph.nodes]) #valency[i] will be subtracted for each operation in a node
+        self.sum_valencies = np.sum(self.valencies) #for calculating the mean_valency, the sum should be subtracted for each operation in a node
+        
         #for grid information only:
         self.p = p #row
         self.q = q #col
@@ -81,47 +83,37 @@ class elimination_ordering_class:
         if self.visu and self.round < 1:
             #print("\n++++ Normalization Stage ++++") 
             self.R_strings.append("++++ Normalization Stage ++++") #print this only if normalize is not empty
-        #global deleted, e, w, first_zero, last_zero, merge_forest
-        n = n_init = graph.shape[0] #number of nodes
-        '''e = np.array([-1]*n) #for now the placeholder is an array of -1
-        w = np.array([1]*n) #weight vector for merge forest
-        merge_forest = np.zeros((n,n)) #merge forest for assessment criteria'''
-        modified = np.array([1]*n) #modified = 1, otherwise 0'''
+        modified = np.array([1]*self.n) #modified = 1, otherwise 0'''
 
 
         #normalize stage
         #for now, cyclic ordering assumption: start from the 1st index to last idx, hence for-loop
         #need merge check for every node passed, by w[i] > 1
         #print("i, n, m, valency, e, summodified, firstzero, lastzero")
-        while np.sum(modified) > 0:
+        while np.any(modified):
             #print()
             #for i in range(n_init):
             '''for visu purpose, use the self.round'''
             if self.visu and self.round < 1:
                 self.R_strings.append("++ new normalization cycle ++")
                 self.R_strings.append("++ i, n, valency, m ++")
-            for i in range(n_init):
+            for i in graph.nodes:
+                '''
                 #check if it is already deleted, if yes, skip:
                 if self.deleted[i]: #deleted in prev round
                     modified[i] = 0 #set modified to 0
                     #print("already deleted:",i)
                     continue
-                if np.sum(modified) == 0:
+                '''
+                #check if every vertex is already unmodified:
+                if not np.any(modified):
                     break
                 #recalculate all of the values:
-                n = get_total_nodes(graph, n_init) #recalculate n by excluding zero vectored rows (disconnected vertices)
-                valencies = np.array([np.sum(graph[j]) for j in range(n_init)]) #needs to recalculate the valency for each update due to the graph-change
-                mean_valency = np.sum(valencies)/n #get mean valency
-                max_valency = np.max(valencies) #get max valency
-                valency = np.sum(graph[i]) #get vertex's valency
-                m = np.min([mean_valency, np.floor(n**(1/4) + 3)])
-                #m = np.floor(n**(1/4) + 3) #probably this is the correct interpretiation
-                #print("mean_valency, np.floor(n**(1/4) + 3)",mean_valency, np.floor(n**(1/4) + 3))
-                neighbours = np.where(graph[i] == 1)[0] #get the neighbours of i
-                #print(i,n,m,valency,e,np.sum(modified),first_zero, last_zero)
-                #print("neighbours",neighbours)
+                valency = self.valencies[i] #get vertex's valency
+                m = np.min([self.sum_valencies/self.n, np.floor(self.n**(1/4) + 3)])
+                neighbours = list(graph[i]) #get the neighbours of i
                 #check all of the conditions based on the valency
-                if valency == n-1:
+                if valency == self.n-1:
                     ##always check for merge - i.e w[i] > 1
                     if self.w[i] > 1:
                         ordered_list = get_ordered_list_merged_vertex(self.merge_forest, i)
@@ -143,11 +135,11 @@ class elimination_ordering_class:
                     #graph = np.delete(graph, i, 1)
                     modified[neighbours] = 1 #set neighbours as modified
                     if self.visu and self.round < 1:
-                        self.R_strings.append(str(i)+" "+ str(n)+" "+ str(valency)+" "+ str(m)+ "||rule 1, place "+str(i)+" last")
+                        self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 1, place "+str(i)+" last")
                         self.R_switch = True
                     if self.visu:
                         self.R_counters[0] += 1
-                elif (valency > np.ceil(n/2)) and (valency == max_valency):
+                elif (valency > np.ceil(self.n/2)) and (valency == np.max(self.valencies)):
                     if self.w[i] > 1:
                         ordered_list = get_ordered_list_merged_vertex(self.merge_forest, i)
                         len_e = len(self.e)
@@ -407,7 +399,12 @@ class elimination_ordering_class:
                     self.last_zero -= 1
                     if self.visu and self.round < 1:
                         print("placed",i,"last")
-                graph.remove_node(i)
+                #update nodes data:
+                self.sum_valencies -= (self.valencies[i] + len(list(graph[i]))) #subtract the sum_valencies by the deleted nodes
+                self.valencies[i] = 0 #set valency[i] = 0
+                self.valencies[list(graph[i])] -= 1 #update valencies[j] -= 1
+                self.n -= 1 #decrease n
+                graph.remove_node(i) #delete node from graph
                 self.deleted[i] = True
         
         '''display grid here'''
@@ -698,9 +695,7 @@ if __name__ == "__main__":
     #print(list(grid.nodes)[3])
     print(get_max_valency([0,1,2,3,6,7,8], [6,8], [1,2,2,2,5,3,2]))
     '''
-
+    grid = grid_generator(3,3)
+    for i in grid.nodes:
+        print(list(grid[i]))
     
-    grid = grid_generator(7,7)
-    EONX = elimination_ordering_class(grid, visualization=True)
-    EONX.separate(grid)
-    print(EONX.e)
