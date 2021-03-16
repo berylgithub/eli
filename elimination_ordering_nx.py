@@ -698,7 +698,8 @@ def load_matrix_market(filename):
 def grid_generator(p, q):
     '''p*q grid generator, p = row, q = col
     '''
-    grid = nx.grid_graph((p,q)) #generate lattice grid
+    grid = nx.grid_graph((q,p)) #generate lattice grid q*p
+    print(grid.nodes)
     mapping = {}
     for x in range(q):
         for y in range(q):
@@ -717,7 +718,7 @@ if __name__ == "__main__":
     #print(list(grid.nodes)[3])
     print(get_max_valency([0,1,2,3,6,7,8], [6,8], [1,2,2,2,5,3,2]))
     '''
-    p=3;q=3
+    p=2;q=5
     grid = grid_generator(p,q)
     print(list(grid.nodes))
     eonx = elimination_ordering_class(grid, visualization=True, p=p, q=q)
