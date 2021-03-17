@@ -54,8 +54,8 @@ class elimination_ordering_class:
             #specialized for separate stage visualization:
             self.separate_placed_rounds = []
         
-            #for separator display visualization:
-            self.Nks = [] #list of separator indexes per round for all rounds
+        #for separator display visualization:
+        self.Nks = [] #list of separator indexes per round for all rounds
         
     '''Normalize Stage'''
     '''preliminaries:
@@ -287,6 +287,8 @@ class elimination_ordering_class:
         #2, need to find a set of M with max distansce from e, which requires BFS or djikstra:
         #print("#2: ")
         distances, _ = dijkstra_shortest_path(graph, e_sep)
+        print("e_sep = ",e_sep)
+        print("distances = ",distances)
         #print("distances",distances)
         conn_components = np.where(distances != np.inf)[0] #indexes of connected components within the subgraph where e resides
         conn_distances = distances[conn_components] #distances of connected components (distances excluding inf)
@@ -314,6 +316,8 @@ class elimination_ordering_class:
 
             #do 2 again:
             distances, _ = dijkstra_shortest_path(graph, e_sep)
+            print("e_sep = ",e_sep)
+            print("distances = ",distances)
             conn_components = np.where(distances != np.inf)[0] #indexes of connected components within the subgraph where e resides
             conn_distances = distances[conn_components] #distances of connected components (distances excluding inf)
             s = conn_components.shape[0] #total connected components
@@ -512,6 +516,7 @@ class elimination_ordering_class:
         of the vertices as a p x q gray image - encode distances <k,k,k+1,>k+1
         as light gray, black, dark gray, white. You can stop the algorithm
         after the first round; then larger instances can be created.'''
+        
         if self.visu and self.round < 1:
             print("****grid display:")
             print("grid for k =",k)
@@ -554,7 +559,7 @@ class elimination_ordering_class:
             # create discrete colormap
             colours = ['blue', '#d3d3d3','black','#A9A9A9', 'white'] 
             #colours = ['blue', '#d3d3d3',(0.1, 0.2, 0.5),'#A9A9A9', 'white']
-            print("RGBA", colors.to_rgba('blue', alpha=None))
+            #print("RGBA", colors.to_rgba('blue', alpha=None))
             cmap = colors.ListedColormap(colours)
             bounds = np.arange(0, len(colours)+1, 1)
             norm = colors.BoundaryNorm(bounds, cmap.N)
@@ -566,6 +571,7 @@ class elimination_ordering_class:
             ax.set_yticks(np.arange(-.5, self.p, 1));
             plt.show()
             print("****end of grid display")
+        
         '''end of grid display'''
         
         
@@ -1055,7 +1061,7 @@ def symmetrization(G):
     A[np.nonzero(A)] = 1
     return A
 
-def grid_generator(p, q, k, p_dep=0, q_dep=0):
+def grid_generator(p, q, k=0, p_dep=0, q_dep=0):
     '''p*q grid generator, p = row, q = col
     if p_dep = 1: p=q,
     elif p_dep = 2: p=q**2
@@ -1092,7 +1098,6 @@ def generate_separator_display(p,q,Nks):
     length = len(Nks)
     A = np.zeros((p,q))+length #matrix color placeholder (white)
     norm_val = np.arange(0, length+1, 1) #discrete [0, length + 1] \in Z
-    print(norm_val)
     #fill color on coordinate:
     for i in range(p*q):
         vertex_id = i
@@ -1106,7 +1111,6 @@ def generate_separator_display(p,q,Nks):
 
     offset = 0.5
     A += offset
-    print(A)
     max_whiteness = 0.75
     colours = np.linspace(0, max_whiteness, length) #from black to gray-ish
     colours = [(col, col, col, 1) for col in colours] + [(1,1,1,1)] #discrete colormap, with alpha=1
@@ -1120,36 +1124,45 @@ def generate_separator_display(p,q,Nks):
     ax.set_xticks(np.arange(-.5, q, 1));
     ax.set_yticks(np.arange(-.5, p, 1));
     plt.show()
-    
-    
-    print(colours, bounds)
-    '''
-    # create discrete colormap
-    colours = ['blue', '#d3d3d3','black','#A9A9A9', 'white'] 
-    cmap = colors.ListedColormap(colours)
-    bounds = np.arange(0, len(colours)+1, 1)
-    norm = colors.BoundaryNorm(bounds, cmap.N)
-    fig, ax = plt.subplots()
-    ax.imshow(data, cmap=cmap, norm=norm, origin="upper")
-    # draw gridlines
-    ax.grid(which='major', axis='both', linestyle='-', color='k', linewidth=2)
-    ax.set_xticks(np.arange(-.5, q, 1));
-    ax.set_yticks(np.arange(-.5, p, 1));
-    plt.show()
-    print("****end of grid display")
-    '''
+
 
 
 if __name__ == "__main__":
-    p=6 #grid row
-    q=36 #grid col
+    
+    '''grid testing'''
+    '''
+    p=10 #grid row
+    q=10 #grid col
     grid = grid_generator(p,q,0) #generate grid matrix
     
+    
     #elimination ordering:
-    EO = elimination_ordering_class(grid, visualization=True, p=p, q=q) #must be on global scope
+    EO = elimination_ordering_class(grid, visualization=True, p=p, q=q)
     e,R_counters,separate_placed_rounds = EO.elimination_ordering(grid)
     print("e, EO.place_loc, EO.rounds_e", e, EO.place_loc, EO.rounds_e)
     grid = grid_generator(p,q,0) #generate grid matrix
     fills,_ = eliminate(grid, e)
     print("fills = ",fills)
     generate_separator_display(p,q,EO.Nks)
+    '''
+    '''end of grid test'''
+    
+    '''
+    import cProfile
+    EO = elimination_ordering_class(grid, visualization=False, p=p, q=q)
+    cProfile.run('EO.elimination_ordering(grid)', sort='cumtime')
+    '''
+    import time
+    p=20;q=20
+    grid = grid_generator(p,q)
+    eonx = elimination_ordering_class(grid, visualization=True, p=p, q=q)
+    start= time.time()
+    #eonx.separate(grid)
+    eonx.elimination_ordering(grid)
+    print(time.time()-start)
+    print(eonx.e)
+    grid = grid_generator(p,q)
+    r = eliminate(grid, eonx.e)
+    print(r[0])
+
+    

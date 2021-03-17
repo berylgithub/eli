@@ -11,7 +11,6 @@ elimination ordering in networkx data structure with order of O(nodes+edges) spa
 
 import numpy as np
 import networkx as nx
-from scipy.special import comb
 from itertools import combinations
 from scipy.io import mmread, mminfo
 from itertools import chain
@@ -30,7 +29,8 @@ class elimination_ordering_class:
         - first zero and last zero idxes
         - deleted bool array
         '''
-        self.n = graph.number_of_nodes() #initial graph size, usable for static vectors
+        self.n_init = graph.number_of_nodes() #initial graph size, usable for static vectors
+        self.n = self.n_init #dynamic graph size
         self.e = np.array([-1]*self.n) #for now the placeholder is an array of -1
         self.w = np.array([1]*self.n) #weight vector for merge forest
         self.merge_forest = nx.Graph() #merge forest for merging procedures
@@ -83,14 +83,13 @@ class elimination_ordering_class:
         if self.visu and self.round < 1:
             #print("\n++++ Normalization Stage ++++") 
             self.R_strings.append("++++ Normalization Stage ++++") #print this only if normalize is not empty
-        modified = np.array([1]*self.n) #modified = 1, otherwise 0'''
-
+        modified = np.array([1]*self.n_init) #modified = 1, otherwise 0'''
 
         #normalize stage
         #for now, cyclic ordering assumption: start from the 1st index to last idx, hence for-loop
         #need merge check for every node passed, by w[i] > 1
         #print("i, n, m, valency, e, summodified, firstzero, lastzero")
-        while np.any(modified):
+        while np.any(modified[list(graph.nodes)]):
             #print()
             #for i in range(n_init):
             '''for visu purpose, use the self.round'''
@@ -102,7 +101,7 @@ class elimination_ordering_class:
                 #check if it is already deleted, if yes, skip:
                 if self.deleted[i]: #deleted in prev round
                     modified[i] = 0 #set modified to 0
-                    #print("already deleted:",i)
+                    print("already deleted:",i)
                     continue
                 '''
                 #check if all vertices are already unmodified:
@@ -217,7 +216,11 @@ class elimination_ordering_class:
                         self.R_switch = True
                     if self.visu:
                         self.R_counters[3] += 1
-                    graph.add_edge(neighbours[0], neighbours[1]) #fill an edge between j
+                    #check if the neigbours are already connected:
+                    if graph.has_edge(neighbours[0], neighbours[1]):
+                        self.valencies[neighbours] -= 1 #subtract the valencies
+                    else:
+                        graph.add_edge(neighbours[0], neighbours[1]) #fill an edge between j
                     self.sum_valencies -= self.valencies[i] #subtract the sum_valencies by i only, because of the fill between j
                     self.valencies[i] = 0 #set valency[i] = 0
                     self.n -= 1 #decrease n
@@ -258,10 +261,10 @@ class elimination_ordering_class:
                 elif (valency <= m): 
                     bool_subset, j_node = check_subset(graph, neighbours) #gamma(i) \subset j^uptack, j \in gamma(i)
                     if bool_subset:
-                        self.merge_forest[j_node][i] = 1 #merge i into j, add directed edge j->i
+                        self.merge_forest.add_edge(j_node, i) #merge i into j, add directed edge j->i
                         self.w[j_node] += 1 #increment weight
                         if self.visu and self.round < 1:
-                            self.R_strings.append(str(i)+" "+ str(n)+" "+ str(valency)+" "+ str(m)+ "||rule 6, merged"+str(i)+"to"+str(j_node))
+                            self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 6, merged "+str(i)+" to "+str(j_node))
                             self.R_switch = True
                         if self.visu:
                             self.R_counters[5] += 1
@@ -323,7 +326,7 @@ class elimination_ordering_class:
                 print("d > d', goto 2")
             #print("d, d_prime, e_sep",d, d_prime, e_sep)
             d_prime = d
-            max_vertex,_ = get_max_valency(list(graph.nodes), M, self.valencies) #probably need to be replaced, because valencies indexes doesnt correspond to full valency of nodes
+            max_vertex,_ = get_max_valency(M, self.valencies) #probably need to be replaced, because valencies indexes doesnt correspond to full valency of nodes
             #print("M, valencies",M, valencies)
             e_sep = max_vertex
 
@@ -385,7 +388,7 @@ class elimination_ordering_class:
         #tried = np.array([0]*self.n); tried[e_sep] = 1 #is this still usable?
         
         #step 8: compute the b_i for i\in N_k, sort N_k in increasing order of b_i:
-        b = np.zeros(self.n)
+        b = np.zeros(self.n_init)
         #i_idxs = N[k]
         for node_i in N[k]:
             out_w_nodes = np.intersect1d(graph[node_i], N[k+1])
@@ -564,18 +567,20 @@ class elimination_ordering_class:
 '''dijkstra https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm''' 
 
 #function to find max valency from nodes
-def get_max_valency(nodes, subset_nodes, valencies):
+def get_max_valency(subset_nodes, valencies):
     '''
     O(m*n) work instead of O(n) of the previous version
     '''
     max_valency = -float("inf")
     max_vertex = None
+    '''
     #get index of subset nodes in the full nodes:
     m_idx = []
     for m in subset_nodes:
         m_idx.append(nodes.index(m))
+    '''
     #sorting:
-    for m in m_idx:
+    for m in subset_nodes:
         if valencies[m] > max_valency:
             max_valency = valencies[m]
             max_vertex = m
@@ -592,6 +597,25 @@ def get_ordered_list_merged_vertex(forest, placed_vertex):
     ordered_list = [placed_vertex] + [v for u,v in ordered_list]
     return list(reversed(ordered_list))
 
+def clique_check(graph, nodelist):
+    H = graph.subgraph(nodelist)
+    n = len(nodelist)
+    return H.size() == n*(n-1)/2
+
+def check_subset(graph, neighbours):
+    bool_subset = False
+    j_get = None
+    for j_node in neighbours:
+        #probably need to be stopped earlier? instead of taking the last neighbour index
+        gamma_j = list(graph[j_node])
+        j_T = np.append(gamma_j, j_node) #j^up_tack = j union gamma(j):= j added to its neighbours
+        if set(neighbours).issubset(set(j_T)): #gamma(i) \subset j^up_tack
+            bool_subset = True
+            j_get = j_node
+            break #stop when found
+    return bool_subset, j_get
+
+
 
 '''============== Utilities =============='''
 def eliminate(graph, elimination_order, join_tree=False):
@@ -607,7 +631,7 @@ def eliminate(graph, elimination_order, join_tree=False):
         sep_idxs = []
     for v in elimination_order:
         #find neighbours and fill the fill-in indexes:
-        K_v = np.array(graph[v])
+        K_v = np.array(list(graph[v]))
         if join_tree:
             C_v = np.array([v] + [w for w in K_v])
             sep_idx = 0 #separator index of (J|K), e.g. 5|29, meaning sepidx = 0; 52|9, meaning sepidx = 1
@@ -699,7 +723,6 @@ def grid_generator(p, q):
     '''p*q grid generator, p = row, q = col
     '''
     grid = nx.grid_graph((q,p)) #generate lattice grid q*p
-    print(grid.nodes)
     mapping = {}
     for x in range(q):
         for y in range(q):
@@ -718,8 +741,18 @@ if __name__ == "__main__":
     #print(list(grid.nodes)[3])
     print(get_max_valency([0,1,2,3,6,7,8], [6,8], [1,2,2,2,5,3,2]))
     '''
-    p=2;q=5
+
+    import time
+    p=64;q=64
     grid = grid_generator(p,q)
-    print(list(grid.nodes))
     eonx = elimination_ordering_class(grid, visualization=True, p=p, q=q)
-    eonx.normalize(grid)
+    start= time.time()
+    #eonx.separate(grid)
+    eonx.elimination_ordering(grid)
+    print(time.time()-start)
+    print(eonx.e)
+    grid = grid_generator(p,q)
+    r = eliminate(grid, eonx.e, join_tree=True)
+    print(r[0])
+    r = absorption(eonx.e, r[2], r[3])
+    print(r[2], r[3])
