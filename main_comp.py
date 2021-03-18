@@ -6,7 +6,7 @@ Created on Fri Feb 26 08:59:25 2021
 """
 
 import numpy as np
-import elimination_ordering as eo
+import elimination_ordering_nx as eo
 import time, pickle
 from os import listdir
 from os.path import isfile, join
@@ -29,20 +29,18 @@ def generate_iperm():
     gridpath = "matrices/grid/grids/"
     #ps = [2,5,10,15,20]
     #qs = [p**2 for p in ps]
-    qs = list(range(1,21))
-    ps = [5]*len(qs)
+    ps = qs = np.power(2,[i for i in range(1,11)])
     for i in range(len(ps)):
         p = ps[i]; q = qs[i]
-        grid = eo.grid_generator(p,q,0)
-        print(grid.shape)
+        grid = eo.grid_generator(p,q)
         #fname="p_q_"+str(k) #"p_q_" or "p_qsqr_" or others
         fname = str(p)+"_"+str(q)
         '''with open(gridpath+fname+".grid", 'wb') as fp:
             pickle.dump(grid, fp)'''
-        eo.adj_mat_to_metis_file(grid, ndpath+fname+".grid.metisgraph")
+        eo.adj_tuples_to_metis_file(grid, ndpath+fname+".grid.metisgraph")
     #save grid sizes (p,q):
     data = {"p":ps, "q":qs}
-    date = "02032021"
+    date = "18032021"
     with open(gridpath+str(len(ps))+"_"+date+"_grids_sizes.info", 'wb') as fp:
         pickle.dump(data, fp)
     
@@ -54,6 +52,8 @@ def computation():
     rootpath = "matrices/grid/"
     #gridpath = "matrices/grid/grids/"
     ipermpath = rootpath+"ndmetis_iperm/"
+    outputpath = rootpath+"grid_p=q_algo3_17032021.jt.p"
+    
     files = np.array([f for f in listdir(ipermpath) if isfile(join(ipermpath, f))])
     print(files)
     
@@ -82,22 +82,22 @@ def computation():
         str_pq = file.split('.')[0]; fnames.append(str_pq+".grid")
         p,q = str_pq.split('_'); p,q = (int(p), int(q)); ps.append(p); qs.append(q)
         #rather than loading grids from disk, it'll be more space efficient if we just re-generate the grids in memory
-        grid = eo.grid_generator(p,q,0)
-        print("\ngrid_shape",grid.shape)
-        vertices = grid.shape[0]
-        edges = np.sum(grid[np.triu_indices(grid.shape[0], 1)]) #sum of upper triangular
+        grid = eo.grid_generator(p,q)
+        print("\ngrid vertices",grid.number_of_nodes())
+        vertices = grid.number_of_nodes()
+        edges = grid.number_of_edges() #sum of upper triangular
         nv.append(vertices); ne.append(edges)
         #elimination ordering:
         start = time.time()
         EO = eo.elimination_ordering_class(grid, visualization=False, p=p, q=q) #must be on global scope
         e = EO.elimination_ordering(grid)
-        es.append(e)
         end = time.time()
+        es.append(e)
         elapsed = end-start
         times.append(elapsed)
         print("time elapsed for elimination ordering: ",elapsed,"s")
         #grid is deleted above, so reload here:
-        grid = eo.grid_generator(p,q,0)
+        grid = eo.grid_generator(p,q)
         #eliminate + jointree generation:
         fill_eli, _, C_vs, sep_idxs = eo.eliminate(grid, e,join_tree=True); print("eli||generating jointree for ",str_pq,"completed!")
         _, _, max_C, max_K = eo.absorption(e, C_vs, sep_idxs); print("eli||absorption for",str_pq,"completed!")
@@ -107,7 +107,7 @@ def computation():
         fills_eli_ratio.append(float(fill_eli/edges))
         print()
         #metis:
-        grid = eo.grid_generator(p,q,0)
+        grid = eo.grid_generator(p,q)
         metis_order = eo.iperm_to_orderlist(ipermpath+file)
         fill_metis, _, C_vs, sep_idxs = eo.eliminate(grid, metis_order, join_tree=True)
         fills_metis.append(fill_metis)
@@ -141,13 +141,13 @@ def computation():
             "max_C_metis": max_C_metis,
             "max_K_metis":max_K_metis
         }
-        with open(rootpath+'grid_pqincr_ndiff_02032021.jt.p', 'wb') as fp:
+        with open(outputpath, 'wb') as fp:
             pickle.dump(data, fp)    
-        with open(rootpath+'grid_pqincr_ndiff_02032021.jt.p', 'rb') as fp:
+        with open(outputpath, 'rb') as fp:
             data = pickle.load(fp)
             print(data)
     
 if __name__ == '__main__':
-    #generate_iperm()
-    computation()
+    generate_iperm()
+    #computation()
     #visu()

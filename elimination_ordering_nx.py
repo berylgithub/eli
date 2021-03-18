@@ -730,6 +730,46 @@ def grid_generator(p, q):
     grid = nx.relabel_nodes(grid, mapping)
     return grid
 
+def generate_separator_display(p,q,Nks):
+    '''
+    p = gridrow
+    q = col
+    Nks = separators
+    
+    display grids and the separator colours by increasing (R,G,B) per iteration
+    '''
+    length = len(Nks)
+    A = np.zeros((p,q))+length #matrix color placeholder (white)
+    norm_val = np.arange(0, length+1, 1) #discrete [0, length + 1] \in Z
+    #fill color on coordinate:
+    for i in range(p*q):
+        vertex_id = i
+        x_idx = vertex_id%q
+        y_idx = int(vertex_id/q)
+        #fill color on x_idx, y_idx:
+        for j in range(length):
+            if vertex_id in Nks[j]:
+                A[y_idx, x_idx] = norm_val[j]
+    
+
+    offset = 0.5
+    A += offset
+    max_whiteness = 0.75
+    colours = np.linspace(0, max_whiteness, length) #from black to gray-ish
+    colours = [(col, col, col, 1) for col in colours] + [(1,1,1,1)] #discrete colormap, with alpha=1
+    cmap = colors.ListedColormap(colours)
+    bounds = np.arange(0, len(colours)+1, 1)
+    norm = colors.BoundaryNorm(bounds, cmap.N)
+    fig, ax = plt.subplots()
+    ax.imshow(A, cmap=cmap, norm=norm, origin="upper")
+    # draw gridlines
+    ax.grid(which='major', axis='both', linestyle='-', color='k', linewidth=2)
+    ax.set_xticks(np.arange(-.5, q, 1));
+    ax.set_yticks(np.arange(-.5, p, 1));
+    plt.show()
+
+
+
 if __name__ == "__main__":
     '''
     grid = grid_generator(3,3)
