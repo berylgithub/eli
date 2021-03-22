@@ -227,37 +227,58 @@ class elimination_ordering_class:
                     graph.remove_node(i) #delete node from graph
                     self.deleted[i] = True
                     modified[neighbours] = 1
-                elif (valency <= m) and (clique_check(graph, neighbours)):
+                elif (valency <= m):
                     #e.insert(0, i)
-                    if self.w[i] > 1:
-                        ordered_list = get_ordered_list_merged_vertex(self.merge_forest, i)
-                        #print("tree[i]",np.where(merge_forest[i] == 1))
-                        len_e = len(self.e)
-                        len_ord_list = len(ordered_list)
-                        self.e[self.first_zero : self.first_zero + len_ord_list] = ordered_list #insert by firstzero pos
+                    #R5:
+                    if clique_check_1(graph, neighbours):
+                        if self.w[i] > 1:
+                            ordered_list = get_ordered_list_merged_vertex(self.merge_forest, i)
+                            #print("tree[i]",np.where(merge_forest[i] == 1))
+                            len_e = len(self.e)
+                            len_ord_list = len(ordered_list)
+                            self.e[self.first_zero : self.first_zero + len_ord_list] = ordered_list #insert by firstzero pos
+                            if self.visu:
+                                self.rounds_e[ordered_list] = self.round
+                            self.first_zero += len_ord_list
+                            #print("place multiple nodes",ordered_list)
+                        else:
+                            #add to the first zero pos and increment the indexer:
+                            #print("place one node")
+                            self.e[self.first_zero] = i
+                            if self.visu:
+                                self.rounds_e[i] = self.round
+                            self.first_zero += 1
+                        if self.visu and self.round < 1:
+                            self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 5, place "+str(i)+" first")
+                            self.R_switch = True
                         if self.visu:
-                            self.rounds_e[ordered_list] = self.round
-                        self.first_zero += len_ord_list
-                        #print("place multiple nodes",ordered_list)
+                            self.R_counters[4] += 1
+                            self.sum_valencies -= (self.valencies[i] + len_neighbours) #subtract the sum_valencies by the deleted nodes
+                        self.valencies[i] = 0 #set valency[i] = 0
+                        self.valencies[neighbours] -= 1 #update valencies[j] -= 1
+                        self.n -= 1 #decrease n
+                        graph.remove_node(i) #delete node from graph
+                        self.deleted[i] = True
+                        modified[neighbours] = 1
+                    #R6:
                     else:
-                        #add to the first zero pos and increment the indexer:
-                        #print("place one node")
-                        self.e[self.first_zero] = i
-                        if self.visu:
-                            self.rounds_e[i] = self.round
-                        self.first_zero += 1
-                    if self.visu and self.round < 1:
-                        self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 5, place "+str(i)+" first")
-                        self.R_switch = True
-                    if self.visu:
-                        self.R_counters[4] += 1
-                        self.sum_valencies -= (self.valencies[i] + len_neighbours) #subtract the sum_valencies by the deleted nodes
-                    self.valencies[i] = 0 #set valency[i] = 0
-                    self.valencies[neighbours] -= 1 #update valencies[j] -= 1
-                    self.n -= 1 #decrease n
-                    graph.remove_node(i) #delete node from graph
-                    self.deleted[i] = True
-                    modified[neighbours] = 1
+                        bool_subset, j_node = check_subset_1(graph, neighbours)
+                        if bool_subset:
+                            self.merge_forest.add_edge(j_node, i) #merge i into j, add directed edge j->i
+                            self.w[j_node] += 1 #increment weight
+                            if self.visu and self.round < 1:
+                                self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 6, merged "+str(i)+" to "+str(j_node))
+                                self.R_switch = True
+                            if self.visu:
+                                self.R_counters[5] += 1
+                            self.sum_valencies -= (self.valencies[i] + len_neighbours) #subtract the sum_valencies by the deleted nodes
+                            self.valencies[i] = 0 #set valency[i] = 0
+                            self.valencies[neighbours] -= 1 #update valencies[j] -= 1
+                            self.n -= 1 #decrease n
+                            graph.remove_node(i) #delete node from graph
+                            self.deleted[i] = True
+                            modified[neighbours] = 1
+                '''
                 elif (valency <= m): 
                     bool_subset, j_node = check_subset(graph, neighbours) #gamma(i) \subset j^uptack, j \in gamma(i)
                     if bool_subset:
@@ -275,6 +296,7 @@ class elimination_ordering_class:
                         graph.remove_node(i) #delete node from graph
                         self.deleted[i] = True
                         modified[neighbours] = 1
+                '''   
                 modified[i] = 0 #set vertex as unmodified
         
             #print per cycle here:
@@ -602,6 +624,7 @@ def clique_check(graph, nodelist):
     n = len(nodelist)
     return H.size() == n*(n-1)/2
 
+
 def check_subset(graph, neighbours):
     bool_subset = False
     j_get = None
@@ -615,7 +638,35 @@ def check_subset(graph, neighbours):
             break #stop when found
     return bool_subset, j_get
 
+def clique_check_1(graph, gamma_i):
+    clique = True
+    for k in gamma_i:
+        for j in gamma_i:
+            if k!=j:
+                if not graph.has_edge(k, j):
+                    clique = False
+                    break
+        if clique == False:
+            break
+    return clique
 
+def check_subset_1(graph, gamma_i):
+    bool_subset = False
+    j_get = None
+    H = gamma_i.copy()
+    for k in gamma_i:
+        for j in gamma_i:
+            if k!=j:
+                #print(k, j, H)
+                if not H:
+                    break #stop when H is empty
+                if not graph.has_edge(k, j) and j in H:
+                    H.remove(j)
+    if H:
+        j_get = H[0]
+        bool_subset = True
+    #print(H)
+    return bool_subset, j_get
 
 '''============== Utilities =============='''
 def eliminate(graph, elimination_order, join_tree=False):
@@ -771,18 +822,10 @@ def generate_separator_display(p,q,Nks):
 
 
 if __name__ == "__main__":
-    '''
-    grid = grid_generator(3,3)
-    print(grid.number_of_nodes())
-    #grid.remove_nodes_from([3,4,5])
-    l = nx.single_source_shortest_path_length(grid, 7)
-    print(l, l.items())
-    print([k for k,v in l.items() if v==10])
-    #print(list(grid.nodes)[3])
-    print(get_max_valency([0,1,2,3,6,7,8], [6,8], [1,2,2,2,5,3,2]))
-    '''
-
     import time
+    import cProfile
+
+    '''
     p=64;q=64
     grid = grid_generator(p,q)
     eonx = elimination_ordering_class(grid, visualization=True, p=p, q=q)
@@ -796,3 +839,29 @@ if __name__ == "__main__":
     print(r[0])
     r = absorption(eonx.e, r[2], r[3])
     print(r[2], r[3])
+    '''
+    
+    
+    p=128;q=128
+    grid = grid_generator(p,q)
+    eonx = elimination_ordering_class(grid, visualization=False, p=p, q=q)
+    start = time.time()
+    #eonx.elimination_ordering(grid)
+    cProfile.run('eonx.elimination_ordering(grid)', sort='cumtime')
+    print(time.time()-start)
+    grid = grid_generator(p,q)
+    r = eliminate(grid, eonx.e)
+    print(r[0])
+    
+    '''
+    graph = nx.Graph([(0,1),(0,2),(0,3),(1,3),(2,3),(1,2)])
+    gamma_i = [0,1,2,3]
+    #for time complexity checking:
+    def _repeat():
+        for i in range(1000000):
+            clique_check(graph, gamma_i)
+            #clique_check_1(graph, gamma_i)
+    print(clique_check(graph, gamma_i))
+    print(clique_check_1(graph, gamma_i))
+    cProfile.run('_repeat()', sort='cumtime')
+    '''
