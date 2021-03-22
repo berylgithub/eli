@@ -109,7 +109,7 @@ class elimination_ordering_class:
                     break
                 #recalculate all of the values:
                 valency = self.valencies[i] #get vertex's valency
-                m = np.min([self.sum_valencies/self.n, np.floor(self.n**(1/4) + 3)])
+                m = None
                 neighbours = list(graph[i]) #get the neighbours of i
                 len_neighbours = len(neighbours)
                 #check all of the conditions based on the valency
@@ -227,57 +227,58 @@ class elimination_ordering_class:
                     graph.remove_node(i) #delete node from graph
                     self.deleted[i] = True
                     modified[neighbours] = 1
-                elif (valency <= m):
-                    #e.insert(0, i)
-                    #R5:
-                    if clique_check_1(graph, neighbours):
-                        if self.w[i] > 1:
-                            ordered_list = get_ordered_list_merged_vertex(self.merge_forest, i)
-                            #print("tree[i]",np.where(merge_forest[i] == 1))
-                            len_e = len(self.e)
-                            len_ord_list = len(ordered_list)
-                            self.e[self.first_zero : self.first_zero + len_ord_list] = ordered_list #insert by firstzero pos
-                            if self.visu:
-                                self.rounds_e[ordered_list] = self.round
-                            self.first_zero += len_ord_list
-                            #print("place multiple nodes",ordered_list)
-                        else:
-                            #add to the first zero pos and increment the indexer:
-                            #print("place one node")
-                            self.e[self.first_zero] = i
-                            if self.visu:
-                                self.rounds_e[i] = self.round
-                            self.first_zero += 1
-                        if self.visu and self.round < 1:
-                            self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 5, place "+str(i)+" first")
-                            self.R_switch = True
-                        if self.visu:
-                            self.R_counters[4] += 1
-                            self.sum_valencies -= (self.valencies[i] + len_neighbours) #subtract the sum_valencies by the deleted nodes
-                        self.valencies[i] = 0 #set valency[i] = 0
-                        self.valencies[neighbours] -= 1 #update valencies[j] -= 1
-                        self.n -= 1 #decrease n
-                        graph.remove_node(i) #delete node from graph
-                        self.deleted[i] = True
-                        modified[neighbours] = 1
-                    #R6:
-                    else:
-                        bool_subset, j_node = check_subset_1(graph, neighbours)
-                        if bool_subset:
-                            self.merge_forest.add_edge(j_node, i) #merge i into j, add directed edge j->i
-                            self.w[j_node] += 1 #increment weight
+                else:
+                    m = np.min([self.sum_valencies/self.n, np.floor(self.n**(1/4) + 3)]) 
+                    if valency <= m:
+                        #R5:
+                        if clique_check_1(graph, neighbours):
+                            if self.w[i] > 1:
+                                ordered_list = get_ordered_list_merged_vertex(self.merge_forest, i)
+                                #print("tree[i]",np.where(merge_forest[i] == 1))
+                                len_e = len(self.e)
+                                len_ord_list = len(ordered_list)
+                                self.e[self.first_zero : self.first_zero + len_ord_list] = ordered_list #insert by firstzero pos
+                                if self.visu:
+                                    self.rounds_e[ordered_list] = self.round
+                                self.first_zero += len_ord_list
+                                #print("place multiple nodes",ordered_list)
+                            else:
+                                #add to the first zero pos and increment the indexer:
+                                #print("place one node")
+                                self.e[self.first_zero] = i
+                                if self.visu:
+                                    self.rounds_e[i] = self.round
+                                self.first_zero += 1
                             if self.visu and self.round < 1:
-                                self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 6, merged "+str(i)+" to "+str(j_node))
+                                self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 5, place "+str(i)+" first")
                                 self.R_switch = True
                             if self.visu:
-                                self.R_counters[5] += 1
-                            self.sum_valencies -= (self.valencies[i] + len_neighbours) #subtract the sum_valencies by the deleted nodes
+                                self.R_counters[4] += 1
+                                self.sum_valencies -= (self.valencies[i] + len_neighbours) #subtract the sum_valencies by the deleted nodes
                             self.valencies[i] = 0 #set valency[i] = 0
                             self.valencies[neighbours] -= 1 #update valencies[j] -= 1
                             self.n -= 1 #decrease n
                             graph.remove_node(i) #delete node from graph
                             self.deleted[i] = True
                             modified[neighbours] = 1
+                        #R6:
+                        else:
+                            bool_subset, j_node = check_subset_1(graph, neighbours)
+                            if bool_subset:
+                                self.merge_forest.add_edge(j_node, i) #merge i into j, add directed edge j->i
+                                self.w[j_node] += 1 #increment weight
+                                if self.visu and self.round < 1:
+                                    self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 6, merged "+str(i)+" to "+str(j_node))
+                                    self.R_switch = True
+                                if self.visu:
+                                    self.R_counters[5] += 1
+                                self.sum_valencies -= (self.valencies[i] + len_neighbours) #subtract the sum_valencies by the deleted nodes
+                                self.valencies[i] = 0 #set valency[i] = 0
+                                self.valencies[neighbours] -= 1 #update valencies[j] -= 1
+                                self.n -= 1 #decrease n
+                                graph.remove_node(i) #delete node from graph
+                                self.deleted[i] = True
+                                modified[neighbours] = 1
                 '''
                 elif (valency <= m): 
                     bool_subset, j_node = check_subset(graph, neighbours) #gamma(i) \subset j^uptack, j \in gamma(i)
