@@ -84,12 +84,13 @@ class elimination_ordering_class:
             #print("\n++++ Normalization Stage ++++") 
             self.R_strings.append("++++ Normalization Stage ++++") #print this only if normalize is not empty
         modified = np.array([1]*self.n_init) #modified = 1, otherwise 0'''
-
+        mod_count = self.n #modified counter
         #normalize stage
         #for now, cyclic ordering assumption: start from the 1st index to last idx, hence for-loop
         #need merge check for every node passed, by w[i] > 1
         #print("i, n, m, valency, e, summodified, firstzero, lastzero")
         while np.any(modified[list(graph.nodes)]):
+        #while mod_count > 0:
             #print()
             #for i in range(n_init):
             '''for visu purpose, use the self.round'''
@@ -106,6 +107,7 @@ class elimination_ordering_class:
                 '''
                 #check if all vertices are already unmodified:
                 if np.any(modified) == False:
+                #if mod_count == 0:
                     break
                 #recalculate all of the values:
                 valency = self.valencies[i] #get vertex's valency
@@ -228,7 +230,12 @@ class elimination_ordering_class:
                     self.deleted[i] = True
                     modified[neighbours] = 1
                 else:
-                    m = np.min([self.sum_valencies/self.n, np.floor(self.n**(1/4) + 3)]) 
+                    #m = np.min([self.sum_valencies/self.n, np.floor(self.n**(1/4) + 3)])
+                    mean_v = self.sum_valencies/self.n
+                    n_fourth = np.floor(self.n**(1/4) + 3)
+                    m = n_fourth
+                    if mean_v < n_fourth:
+                        m = mean_v
                     if valency <= m:
                         #R5:
                         if clique_check_1(graph, neighbours):
