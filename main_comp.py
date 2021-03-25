@@ -52,7 +52,7 @@ def computation():
     rootpath = "matrices/grid/"
     #gridpath = "matrices/grid/grids/"
     ipermpath = rootpath+"ndmetis_iperm/"
-    outputpath = rootpath+"grid_p=q_algo3_17032021.jt.p"
+    outputpath = rootpath+"grid_p=q_algo3_18032021_kgeq7.jt.p"
     
     files = np.array([f for f in listdir(ipermpath) if isfile(join(ipermpath, f))])
     print(files)
@@ -112,7 +112,7 @@ def computation():
         fill_metis, _, C_vs, sep_idxs = eo.eliminate(grid, metis_order, join_tree=True)
         fills_metis.append(fill_metis)
         print("metis||generating jointree for ",str_pq,"completed!")    
-        _, _, max_C, max_K = eo.absorption(e, C_vs, sep_idxs)
+        _, _, max_C, max_K = eo.absorption(metis_order, C_vs, sep_idxs)
         max_C_metis.append(max_C); max_K_metis.append(max_K); print("metis||max_C, max_K:",max_C, max_K)
         print("metis||absorption for",str_pq,"completed!")
         print("metis", fill_metis)
@@ -148,6 +148,6 @@ def computation():
             print(data)
     
 if __name__ == '__main__':
-    generate_iperm()
-    #computation()
+    #generate_iperm()
+    computation()
     #visu()
