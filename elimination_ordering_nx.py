@@ -19,6 +19,7 @@ from itertools import chain
 import matplotlib.pyplot as plt
 from matplotlib import colors
 
+from time import sleep
 
 class elimination_ordering_class:
     def __init__(self, graph, visualization=False, p=0, q=0):
@@ -85,18 +86,20 @@ class elimination_ordering_class:
             #print("\n++++ Normalization Stage ++++") 
             self.R_strings.append("++++ Normalization Stage ++++") #print this only if normalize is not empty
         modified = np.array([1]*self.n_init) #modified = 1, otherwise 0'''
+        looked_counter = 0
+        left_counter = self.graph.number_of_nodes()
         #normalize stage
         #for now, cyclic ordering assumption: start from the 1st index to last idx, hence for-loop
         #need merge check for every node passed, by w[i] > 1
-        #print("i, n, m, valency, e, summodified, firstzero, lastzero")
-        while np.any(modified[list(self.graph.nodes)]):
-            #print()
+        #while np.any(modified[list(self.graph.nodes)]):
+        while looked_counter < left_counter:
             #for i in range(n_init):
             '''for visu purpose, use the self.round'''
             if self.visu and self.round < 1:
                 self.R_strings.append("++ new normalization cycle ++")
                 self.R_strings.append("++ i, n, valency, m ++")
             for i in list(self.graph.nodes):
+                #print(i, looked_counter, left_counter, modified[i])
                 '''
                 #check if it is already deleted, if yes, skip:
                 if self.deleted[i]: #deleted in prev round
@@ -104,11 +107,15 @@ class elimination_ordering_class:
                     print("already deleted:",i)
                     continue
                 '''
-                if modified[i] == 0: #if a vertex is already unmodified, skip it
-                    continue
                 #check if all vertices are already unmodified:
-                if np.any(modified) == False:
+                #if np.any(modified) == False:
+                if looked_counter >= left_counter:
                     break
+                
+                if modified[i] == 0: #if a vertex is already unmodified, skip it
+                    looked_counter += 1 
+                    continue
+                
                 #recalculate all of the values:
                 valency = self.valencies[i] #get vertex's valency
                 m = None
@@ -119,12 +126,15 @@ class elimination_ordering_class:
                     ##always check for merge - i.e w[i] > 1
                     self.vertex_placement_last(i, 1, valency, neighbours, len_neighbours)
                     self.post_placement(i, neighbours, len_neighbours, modified)
+                    left_counter -= 1; looked_counter = 0
                 elif (valency > np.ceil(self.n/2)) and (valency == np.max(self.valencies)):
                     self.vertex_placement_last(i, 2, valency, neighbours, len_neighbours)
                     self.post_placement(i, neighbours, len_neighbours, modified)
+                    left_counter -= 1; looked_counter = 0
                 elif valency <= 1:
                     self.vertex_placement_first(i, 3, valency, neighbours, len_neighbours)
                     self.post_placement(i, neighbours, len_neighbours, modified)
+                    left_counter -= 1; looked_counter = 0
                 elif valency == 2:
                     self.vertex_placement_first(i, 4, valency, neighbours, len_neighbours)
                     #check if the neigbours are already connected:
@@ -138,20 +148,23 @@ class elimination_ordering_class:
                     self.graph.remove_node(i) #delete node from graph
                     self.deleted[i] = True
                     modified[neighbours] = 1
+                    left_counter -= 1; looked_counter = 0
                 else:
                     #m = np.min([self.sum_valencies/self.n, np.floor(self.n**(1/4) + 3)])
                     mean_v = self.sum_valencies/self.n
                     n_fourth = np.floor(self.n**(1/4) + 3)
                     m = n_fourth
-                    if mean_v < n_fourth:
+                    if mean_v < n_fourth: #sorter
                         m = mean_v
                     if valency <= m:
                         #R5:
                         if clique_check_1(self.graph, neighbours):
                             self.vertex_placement_first(i, 5, valency, neighbours, len_neighbours, m)
                             self.post_placement(i, neighbours, len_neighbours, modified)
+                            left_counter -= 1; looked_counter = 0
                         #R6:
                         else:
+                            #merge rule
                             bool_subset, j_node = check_subset_1(self.graph, neighbours)
                             if bool_subset:
                                 self.merge_forest.add_edge(j_node, i) #merge i into j, add directed edge j->i
@@ -162,14 +175,22 @@ class elimination_ordering_class:
                                 if self.visu:
                                     self.R_counters[5] += 1
                                 self.post_placement(i, neighbours, len_neighbours, modified)
+                                left_counter -= 1; looked_counter = 0
+                            else:
+                                #print("goes into else below subset check")
+                                looked_counter += 1 
+                    else: #if it's not into any of the rules
+                        #print("goes into no rule applied")
+                        looked_counter += 1        
                 modified[i] = 0 #set vertex as unmodified
-        
+
             #print per cycle here:
             if self.visu and self.R_switch and self.round < 1:
                 for s in self.R_strings:
                     print(s)
                 self.R_strings = [] #empty the strings container
                 self.R_switch = False #turn switch off
+            
     
     def vertex_placement_last(self, i, rule, valency, neighbours, len_neighbours, m=0):
         ##always check for merge - i.e w[i] > 1
@@ -448,22 +469,21 @@ class elimination_ordering_class:
     def elimination_ordering(self, log=False):
         #alternate normalize and separate while the graph is not empty
         #i=0
-        while np.sum(self.graph) > 0:
-            
+        while self.graph.number_of_nodes() > 0:
             '''for visu:'''
             if self.visu and self.round < 1:
                 print("===================================")
                 print(">>>> Round Iteration",self.round,":")
             '''end of visu'''
             
-            if np.sum(self.graph) == 0:
+            if self.graph.number_of_nodes() == 0:
                 break
             if log:
                 print("Normalize:")
             self.normalize()
             if log:
                 print("e, w, first_zero, last_zero, deleted", self.e, self.w, self.first_zero, self.last_zero, np.where(self.deleted == True))
-            if np.sum(self.graph) == 0:
+            if self.graph.number_of_nodes() == 0:
                 break
             '''for visu; print normalize results'''
             if self.visu and self.round < 1:
@@ -484,7 +504,6 @@ class elimination_ordering_class:
             if log:
                 print("==================NEW ROUND======================= \n")
             #i += 1
-            
             self.round += 1
         
         if self.visu:
@@ -761,14 +780,15 @@ if __name__ == "__main__":
     '''
     
     
-    p=64;q=64
+    p=128;q=128
     grid = grid_generator(p,q)
     eonx = elimination_ordering_class(grid, visualization=False, p=p, q=q)
     start = time.time()
-    #eonx.elimination_ordering(grid)
+    #eonx.elimination_ordering()
     cProfile.run('eonx.elimination_ordering()', sort='cumtime')
     print(time.time()-start)
     grid = grid_generator(p,q)
+    #print(eonx.e)
     r = eliminate(grid, eonx.e)
     print(r[0])
     
