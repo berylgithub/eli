@@ -29,7 +29,8 @@ class elimination_ordering_class:
         - first zero and last zero idxes
         - deleted bool array
         '''
-        self.n_init = graph.number_of_nodes() #initial graph size, usable for static vectors
+        self.graph = graph
+        self.n_init = self.graph.number_of_nodes() #initial graph size, usable for static vectors
         self.n = self.n_init #dynamic graph size
         self.e = np.array([-1]*self.n) #for now the placeholder is an array of -1
         self.w = np.array([1]*self.n) #weight vector for merge forest
@@ -38,7 +39,7 @@ class elimination_ordering_class:
         self.first_zero = 0; self.last_zero = -1
         
         '''calculate the valencies early, so that within the stages there will be no valencies re-calculation:'''
-        self.valencies = np.array([len(graph[i]) for i in graph.nodes]) #valency[i] will be subtracted for each operation in a node
+        self.valencies = np.array([len(self.graph[i]) for i in self.graph.nodes]) #valency[i] will be subtracted for each operation in a node
         self.sum_valencies = np.sum(self.valencies) #for calculating the mean_valency, the sum should be subtracted for each operation in a node
         
         #for grid information only:
@@ -79,25 +80,23 @@ class elimination_ordering_class:
     '''
 
     #normalize stage:
-    def normalize(self, graph):
+    def normalize(self):
         if self.visu and self.round < 1:
             #print("\n++++ Normalization Stage ++++") 
             self.R_strings.append("++++ Normalization Stage ++++") #print this only if normalize is not empty
         modified = np.array([1]*self.n_init) #modified = 1, otherwise 0'''
-        mod_count = self.n #modified counter
         #normalize stage
         #for now, cyclic ordering assumption: start from the 1st index to last idx, hence for-loop
         #need merge check for every node passed, by w[i] > 1
         #print("i, n, m, valency, e, summodified, firstzero, lastzero")
-        while np.any(modified[list(graph.nodes)]):
-        #while mod_count > 0:
+        while np.any(modified[list(self.graph.nodes)]):
             #print()
             #for i in range(n_init):
             '''for visu purpose, use the self.round'''
             if self.visu and self.round < 1:
                 self.R_strings.append("++ new normalization cycle ++")
                 self.R_strings.append("++ i, n, valency, m ++")
-            for i in list(graph.nodes):
+            for i in list(self.graph.nodes):
                 '''
                 #check if it is already deleted, if yes, skip:
                 if self.deleted[i]: #deleted in prev round
@@ -105,128 +104,38 @@ class elimination_ordering_class:
                     print("already deleted:",i)
                     continue
                 '''
+                if modified[i] == 0: #if a vertex is already unmodified, skip it
+                    continue
                 #check if all vertices are already unmodified:
                 if np.any(modified) == False:
-                #if mod_count == 0:
                     break
                 #recalculate all of the values:
                 valency = self.valencies[i] #get vertex's valency
                 m = None
-                neighbours = list(graph[i]) #get the neighbours of i
+                neighbours = list(self.graph[i]) #get the neighbours of i
                 len_neighbours = len(neighbours)
                 #check all of the conditions based on the valency
                 if valency == self.n-1:
                     ##always check for merge - i.e w[i] > 1
-                    if self.w[i] > 1:
-                        ordered_list = get_ordered_list_merged_vertex(self.merge_forest, i)
-                        len_e = len(self.e)
-                        len_ord_list = len(ordered_list)
-                        self.e[len_e + self.last_zero - len_ord_list + 1 : len_e + self.last_zero + 1] = ordered_list #lastzero placement
-                        if self.visu:
-                            self.rounds_e[ordered_list] = self.round
-                        self.last_zero -= len_ord_list #decrement last zero by the size of the ordered list 
-                    else:
-                        #add to the last zero and decrement the indexer:
-                        self.e[self.last_zero] = i
-                        if self.visu:
-                            self.rounds_e[i] = self.round
-                        self.last_zero -= 1
-                    if self.visu and self.round < 1:
-                        self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 1, place "+str(i)+" last")
-                        self.R_switch = True
-                    if self.visu:
-                        self.R_counters[0] += 1
-                    self.sum_valencies -= (self.valencies[i] + len_neighbours) #subtract the sum_valencies by the deleted nodes
-                    self.valencies[i] = 0 #set valency[i] = 0
-                    self.valencies[neighbours] -= 1 #update valencies[j] -= 1
-                    self.n -= 1 #decrease n
-                    graph.remove_node(i) #delete node from graph
-                    self.deleted[i] = True
-                    modified[neighbours] = 1
+                    self.vertex_placement_last(i, 1, valency, neighbours, len_neighbours)
+                    self.post_placement(i, neighbours, len_neighbours, modified)
                 elif (valency > np.ceil(self.n/2)) and (valency == np.max(self.valencies)):
-                    if self.w[i] > 1:
-                        ordered_list = get_ordered_list_merged_vertex(self.merge_forest, i)
-                        len_e = len(self.e)
-                        len_ord_list = len(ordered_list)
-                        self.e[len_e + self.last_zero - len_ord_list + 1 : len_e + self.last_zero + 1] = ordered_list
-                        if self.visu:
-                            self.rounds_e[ordered_list] = self.round
-                        self.last_zero -= len_ord_list
-                    else:
-                        self.e[self.last_zero] = i
-                        if self.visu:
-                            self.rounds_e[i] = self.round
-                        self.last_zero -= 1
-                    if self.visu and self.round < 1:
-                        self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 2, place "+str(i)+" last")
-                        self.R_switch = True
-                    if self.visu:
-                        self.R_counters[1] += 1
-                    self.sum_valencies -= (self.valencies[i] + len_neighbours) #subtract the sum_valencies by the deleted nodes
-                    self.valencies[i] = 0 #set valency[i] = 0
-                    self.valencies[neighbours] -= 1 #update valencies[j] -= 1
-                    self.n -= 1 #decrease n
-                    graph.remove_node(i) #delete node from graph
-                    self.deleted[i] = True
-                    modified[neighbours] = 1
+                    self.vertex_placement_last(i, 2, valency, neighbours, len_neighbours)
+                    self.post_placement(i, neighbours, len_neighbours, modified)
                 elif valency <= 1:
-                    #e.insert(0, i) #place vertex first
-                    if self.w[i] > 1:
-                        ordered_list = get_ordered_list_merged_vertex(self.merge_forest, i)
-                        len_e = len(self.e)
-                        len_ord_list = len(ordered_list)
-                        self.e[self.first_zero : self.first_zero + len_ord_list] = ordered_list #insert by firstzero pos
-                        if self.visu:
-                            self.rounds_e[ordered_list] = self.round
-                        self.first_zero += len_ord_list #increment the first zero by the size of the ordered list
-                    else:
-                        #add to the first zero pos and increment the indexer:
-                        self.e[self.first_zero] = i
-                        if self.visu:
-                            self.rounds_e[i] = self.round
-                        self.first_zero += 1
-                    if self.visu and self.round < 1:
-                        self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 3, place "+str(i)+" first")
-                        self.R_switch = True
-                    if self.visu:
-                        self.R_counters[2] += 1
-                    self.sum_valencies -= (self.valencies[i] + len_neighbours) #subtract the sum_valencies by the deleted nodes
-                    self.valencies[i] = 0 #set valency[i] = 0
-                    self.valencies[neighbours] -= 1 #update valencies[j] -= 1
-                    self.n -= 1 #decrease n
-                    graph.remove_node(i) #delete node from graph
-                    self.deleted[i] = True
-                    modified[neighbours] = 1
+                    self.vertex_placement_first(i, 3, valency, neighbours, len_neighbours)
+                    self.post_placement(i, neighbours, len_neighbours, modified)
                 elif valency == 2:
-                    #e.insert(0, i)
-                    if self.w[i] > 1:
-                        ordered_list = get_ordered_list_merged_vertex(self.merge_forest, i)
-                        len_e = len(self.e)
-                        len_ord_list = len(ordered_list)
-                        self.e[self.first_zero : self.first_zero + len_ord_list] = ordered_list #insert by firstzero pos
-                        if self.visu:
-                            self.rounds_e[ordered_list] = self.round
-                        self.first_zero += len_ord_list
-                    else:
-                        #add to the first zero pos and increment the indexer:
-                        self.e[self.first_zero] = i
-                        if self.visu:
-                            self.rounds_e[i] = self.round
-                        self.first_zero += 1
-                    if self.visu and self.round < 1:
-                        self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 4, place "+str(i)+" first")
-                        self.R_switch = True
-                    if self.visu:
-                        self.R_counters[3] += 1
+                    self.vertex_placement_first(i, 4, valency, neighbours, len_neighbours)
                     #check if the neigbours are already connected:
-                    if graph.has_edge(neighbours[0], neighbours[1]):
+                    if self.graph.has_edge(neighbours[0], neighbours[1]):
                         self.valencies[neighbours] -= 1 #subtract the valencies
                     else:
-                        graph.add_edge(neighbours[0], neighbours[1]) #fill an edge between j
+                        self.graph.add_edge(neighbours[0], neighbours[1]) #fill an edge between j
                     self.sum_valencies -= self.valencies[i] #subtract the sum_valencies by i only, because of the fill between j
                     self.valencies[i] = 0 #set valency[i] = 0
                     self.n -= 1 #decrease n
-                    graph.remove_node(i) #delete node from graph
+                    self.graph.remove_node(i) #delete node from graph
                     self.deleted[i] = True
                     modified[neighbours] = 1
                 else:
@@ -238,39 +147,12 @@ class elimination_ordering_class:
                         m = mean_v
                     if valency <= m:
                         #R5:
-                        if clique_check_1(graph, neighbours):
-                            if self.w[i] > 1:
-                                ordered_list = get_ordered_list_merged_vertex(self.merge_forest, i)
-                                #print("tree[i]",np.where(merge_forest[i] == 1))
-                                len_e = len(self.e)
-                                len_ord_list = len(ordered_list)
-                                self.e[self.first_zero : self.first_zero + len_ord_list] = ordered_list #insert by firstzero pos
-                                if self.visu:
-                                    self.rounds_e[ordered_list] = self.round
-                                self.first_zero += len_ord_list
-                                #print("place multiple nodes",ordered_list)
-                            else:
-                                #add to the first zero pos and increment the indexer:
-                                #print("place one node")
-                                self.e[self.first_zero] = i
-                                if self.visu:
-                                    self.rounds_e[i] = self.round
-                                self.first_zero += 1
-                            if self.visu and self.round < 1:
-                                self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 5, place "+str(i)+" first")
-                                self.R_switch = True
-                            if self.visu:
-                                self.R_counters[4] += 1
-                                self.sum_valencies -= (self.valencies[i] + len_neighbours) #subtract the sum_valencies by the deleted nodes
-                            self.valencies[i] = 0 #set valency[i] = 0
-                            self.valencies[neighbours] -= 1 #update valencies[j] -= 1
-                            self.n -= 1 #decrease n
-                            graph.remove_node(i) #delete node from graph
-                            self.deleted[i] = True
-                            modified[neighbours] = 1
+                        if clique_check_1(self.graph, neighbours):
+                            self.vertex_placement_first(i, 5, valency, neighbours, len_neighbours, m)
+                            self.post_placement(i, neighbours, len_neighbours, modified)
                         #R6:
                         else:
-                            bool_subset, j_node = check_subset_1(graph, neighbours)
+                            bool_subset, j_node = check_subset_1(self.graph, neighbours)
                             if bool_subset:
                                 self.merge_forest.add_edge(j_node, i) #merge i into j, add directed edge j->i
                                 self.w[j_node] += 1 #increment weight
@@ -279,32 +161,7 @@ class elimination_ordering_class:
                                     self.R_switch = True
                                 if self.visu:
                                     self.R_counters[5] += 1
-                                self.sum_valencies -= (self.valencies[i] + len_neighbours) #subtract the sum_valencies by the deleted nodes
-                                self.valencies[i] = 0 #set valency[i] = 0
-                                self.valencies[neighbours] -= 1 #update valencies[j] -= 1
-                                self.n -= 1 #decrease n
-                                graph.remove_node(i) #delete node from graph
-                                self.deleted[i] = True
-                                modified[neighbours] = 1
-                '''
-                elif (valency <= m): 
-                    bool_subset, j_node = check_subset(graph, neighbours) #gamma(i) \subset j^uptack, j \in gamma(i)
-                    if bool_subset:
-                        self.merge_forest.add_edge(j_node, i) #merge i into j, add directed edge j->i
-                        self.w[j_node] += 1 #increment weight
-                        if self.visu and self.round < 1:
-                            self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 6, merged "+str(i)+" to "+str(j_node))
-                            self.R_switch = True
-                        if self.visu:
-                            self.R_counters[5] += 1
-                        self.sum_valencies -= (self.valencies[i] + len_neighbours) #subtract the sum_valencies by the deleted nodes
-                        self.valencies[i] = 0 #set valency[i] = 0
-                        self.valencies[neighbours] -= 1 #update valencies[j] -= 1
-                        self.n -= 1 #decrease n
-                        graph.remove_node(i) #delete node from graph
-                        self.deleted[i] = True
-                        modified[neighbours] = 1
-                '''   
+                                self.post_placement(i, neighbours, len_neighbours, modified)
                 modified[i] = 0 #set vertex as unmodified
         
             #print per cycle here:
@@ -313,11 +170,64 @@ class elimination_ordering_class:
                     print(s)
                 self.R_strings = [] #empty the strings container
                 self.R_switch = False #turn switch off
-        #return e, w, first_zero, last_zero, merge_forest
-        #return first_zero, last_zero
+    
+    def vertex_placement_last(self, i, rule, valency, neighbours, len_neighbours, m=0):
+        ##always check for merge - i.e w[i] > 1
+        if self.w[i] > 1:
+            ordered_list = get_ordered_list_merged_vertex(self.merge_forest, i)
+            len_e = len(self.e)
+            len_ord_list = len(ordered_list)
+            self.e[len_e + self.last_zero - len_ord_list + 1 : len_e + self.last_zero + 1] = ordered_list #lastzero placement
+            if self.visu:
+                self.rounds_e[ordered_list] = self.round
+            self.last_zero -= len_ord_list #decrement last zero by the size of the ordered list 
+        else:
+            #add to the last zero and decrement the indexer:
+            self.e[self.last_zero] = i
+            if self.visu:
+                self.rounds_e[i] = self.round
+            self.last_zero -= 1
+        if self.visu and self.round < 1:
+            self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule "+str(rule)+", place "+str(i)+" last")
+            self.R_switch = True
+        if self.visu:
+            self.R_counters[rule-1] += 1
+
+    def vertex_placement_first(self, i, rule, valency, neighbours, len_neighbours, m=0):
+        ##always check for merge - i.e w[i] > 1
+        if self.w[i] > 1:
+            ordered_list = get_ordered_list_merged_vertex(self.merge_forest, i)
+            len_ord_list = len(ordered_list)
+            self.e[self.first_zero : self.first_zero + len_ord_list] = ordered_list #insert by firstzero pos
+            if self.visu:
+                self.rounds_e[ordered_list] = self.round
+            self.first_zero += len_ord_list #increment the first zero by the size of the ordered list
+        else:
+            #add to the first zero pos and increment the indexer:
+            self.e[self.first_zero] = i
+            if self.visu:
+                self.rounds_e[i] = self.round
+            self.first_zero += 1
+        if self.visu and self.round < 1:
+            self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule "+str(rule)+", place "+str(i)+" first")
+            self.R_switch = True
+        if self.visu:
+            self.R_counters[rule-1] += 1
+
+    def post_placement(self, i, neighbours, len_neighbours, modified):
+        self.sum_valencies -= (self.valencies[i] + len_neighbours) #subtract the sum_valencies by the deleted nodes
+        self.valencies[i] = 0 #set valency[i] = 0
+        self.valencies[neighbours] -= 1 #update valencies[j] -= 1
+        self.n -= 1 #decrease n
+        self.graph.remove_node(i) #delete node from graph
+        self.deleted[i] = True
+        modified[neighbours] = 1
         
+    '''end of normalize stage'''
+    
+    
     '''Separate Stage'''
-    def separate(self, graph):
+    def separate(self):
         #global deleted, e, w, first_zero, last_zero, merge_forest
         if self.visu and self.round < 1:
             print("\n---- Separation stage ----")
@@ -339,7 +249,7 @@ class elimination_ordering_class:
         
         #2, need to find a set of M with max distansce from e, which requires BFS or djikstra:
         #print("#2: ")
-        distances = nx.single_source_shortest_path_length(graph, e_sep) #dict of {node: distance}, it is unsorted
+        distances = nx.single_source_shortest_path_length(self.graph, e_sep) #dict of {node: distance}, it is unsorted
         #conn_components = np.where(distances != np.inf)[0] #indexes of connected components within the subgraph where e resides
         s = len(distances) #total connected components
         d = np.max(list(distances.values())) #max distance from e
@@ -361,7 +271,7 @@ class elimination_ordering_class:
             e_sep = max_vertex
 
             #do 2 again:
-            distances = nx.single_source_shortest_path_length(graph, e_sep) #dict of {node: distance}, it is unsorted
+            distances = nx.single_source_shortest_path_length(self.graph, e_sep) #dict of {node: distance}, it is unsorted
             #conn_components = np.where(distances != np.inf)[0] #indexes of connected components within the subgraph where e resides
             s = len(distances) #total connected components
             d = np.max(list(distances.values())) #max distance from e
@@ -421,7 +331,7 @@ class elimination_ordering_class:
         b = np.zeros(self.n_init)
         #i_idxs = N[k]
         for node_i in N[k]:
-            out_w_nodes = np.intersect1d(graph[node_i], N[k+1])
+            out_w_nodes = np.intersect1d(self.graph[node_i], N[k+1])
             b[node_i] = np.sum(self.w[out_w_nodes]) #w = weights from normalization, need to know which value belongs to which
             #print("gamma_i, N[k+1]",gamma_i, N[k+1])
         sorted_b_Nk_idx = np.argsort(b[N[k]])
@@ -455,11 +365,11 @@ class elimination_ordering_class:
                     if self.visu and self.round < 1:
                         print("placed",i,"last")
                 #update nodes data:
-                self.sum_valencies -= (self.valencies[i] + len(list(graph[i]))) #subtract the sum_valencies by the deleted nodes
+                self.sum_valencies -= (self.valencies[i] + len(list(self.graph[i]))) #subtract the sum_valencies by the deleted nodes
                 self.valencies[i] = 0 #set valency[i] = 0
-                self.valencies[list(graph[i])] -= 1 #update valencies[j] -= 1
+                self.valencies[list(self.graph[i])] -= 1 #update valencies[j] -= 1
                 self.n -= 1 #decrease n
-                graph.remove_node(i) #delete node from graph
+                self.graph.remove_node(i) #delete node from graph
                 self.deleted[i] = True
         
         '''display grid here'''
@@ -532,12 +442,13 @@ class elimination_ordering_class:
         #tried[N[k]] = 1 #mark all i \in N_k as tried
         if self.visu:
             self.separate_placed_rounds.append(separate_placed_round)
-
+    '''end of separate stage'''
+    
     '''Combining both normalize and separate stage'''
-    def elimination_ordering(self, graph, log=False):
+    def elimination_ordering(self, log=False):
         #alternate normalize and separate while the graph is not empty
         #i=0
-        while np.sum(graph) > 0:
+        while np.sum(self.graph) > 0:
             
             '''for visu:'''
             if self.visu and self.round < 1:
@@ -545,14 +456,14 @@ class elimination_ordering_class:
                 print(">>>> Round Iteration",self.round,":")
             '''end of visu'''
             
-            if np.sum(graph) == 0:
+            if np.sum(self.graph) == 0:
                 break
             if log:
                 print("Normalize:")
-            self.normalize(graph)
+            self.normalize()
             if log:
                 print("e, w, first_zero, last_zero, deleted", self.e, self.w, self.first_zero, self.last_zero, np.where(self.deleted == True))
-            if np.sum(graph) == 0:
+            if np.sum(self.graph) == 0:
                 break
             '''for visu; print normalize results'''
             if self.visu and self.round < 1:
@@ -561,7 +472,7 @@ class elimination_ordering_class:
             '''end of visu'''
             if log:
                 print("\n Separate:")
-            self.separate(graph)
+            self.separate()
             '''for visu; print separate results'''
             if self.visu and self.round < 1:
                 print("current e_vector: ",self.e)
@@ -850,12 +761,12 @@ if __name__ == "__main__":
     '''
     
     
-    p=128;q=128
+    p=64;q=64
     grid = grid_generator(p,q)
     eonx = elimination_ordering_class(grid, visualization=False, p=p, q=q)
     start = time.time()
     #eonx.elimination_ordering(grid)
-    cProfile.run('eonx.elimination_ordering(grid)', sort='cumtime')
+    cProfile.run('eonx.elimination_ordering()', sort='cumtime')
     print(time.time()-start)
     grid = grid_generator(p,q)
     r = eliminate(grid, eonx.e)
