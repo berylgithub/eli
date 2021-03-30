@@ -70,3 +70,20 @@ III. Combined Normalize + Separate:
 After testing using nauru graph, eli differes in 2 fills:  
 - eli : 58 fills
 - metis : 56 fills ### Need to be checked further whether the ordering is correct or not: "The ordering file of a graph with n vertices consists of n lines with a single number per line. The ith line of the ordering file contains the new order of the ith vertex of the graph. The numbering in the ordering file starts from 0."
+
+==========================================
+30.03.2021:
+Treating the graphs per-component changes the flow organization entirely. Previously, when the whole graph is treated, the flow is: <br/>
+    N-S-N-S-......-graph = {} <br/>
+    N := Normalize, S:= Separate
+When each component is treated, the flow becomes:
+    N-S-N-S-....<br/>
+     \<br/>
+     first_comp = {}<br/>
+        \  first_comp := next_comp <br/>
+         N-S-N-S-.....
+              \
+              {}
+               
+i.e., when the treated component is empty (which only happens in Normalize stage), the algorithm **must** switch to the Normalize stage to treat the next non-empty component since if it alternates to Separate stage, it will cause error due to the final component being only n_1--n_2 graph.
+The new flow is recursive, or possible to be non-recursive by introducing a stack which tracks the components, e.g., first_component, next_components. 
