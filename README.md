@@ -81,9 +81,9 @@ When each component is treated, the flow becomes:
      \<br/>
      first_comp = {}<br/>
         \  first_comp := next_comp <br/>
-         N-S-N-S-.....
-              \
-              {}
+         N-S-N-S-.....<br/>
+              \<br/>
+              {}<br/>
                
 i.e., when the treated component is empty (which only happens in Normalize stage), the algorithm **must** switch to the Normalize stage to treat the next non-empty component since if it alternates to Separate stage, it will cause error due to the final component being only n_1--n_2 graph.
 The new flow is recursive, or possible to be non-recursive by introducing a stack which tracks the components, e.g., first_component, next_components. 
