@@ -32,7 +32,9 @@ class elimination_ordering_class:
         '''
         self.graph = graph
         self.n_init = self.graph.number_of_nodes() #initial graph size, usable for static vectors
-        self.n = self.n_init #dynamic graph size
+        self.n = self.n_init #dynamic graph size  
+        self.comp_stack = [self.graph.nodes] #first, fill with all of the nodes, each element of the stack is a list of connected components
+        self.stack_counter = self.n_init #initialize the stack counter by the number of nodes (maybe used maybe not)
         self.e = np.array([-1]*self.n) #for now the placeholder is an array of -1
         self.w = np.array([1]*self.n) #weight vector for merge forest
         self.merge_forest = nx.Graph() #merge forest for merging procedures
@@ -465,12 +467,14 @@ class elimination_ordering_class:
             self.separate_placed_rounds.append(separate_placed_round)
     '''end of separate stage'''
     
+    
     '''Combining both normalize and separate stage'''
     def elimination_ordering(self, log=False):
         #alternate normalize and separate while the graph is not empty
         #i=0
         while self.graph.number_of_nodes() > 0:
             '''for visu:'''
+            #print("round = ",self.round)
             if self.visu and self.round < 1:
                 print("===================================")
                 print(">>>> Round Iteration",self.round,":")
@@ -522,8 +526,352 @@ class elimination_ordering_class:
             return (self.e, self.R_counters, self.separate_placed_rounds)
         else:
             return self.e 
-         
-'''separate stage helper'''
+    
+    """per component-treatment version"""
+    def normalize_1(self):
+        if self.visu and self.round < 1:
+            #print("\n++++ Normalization Stage ++++") 
+            self.R_strings.append("++++ Normalization Stage ++++") #print this only if normalize is not empty
+        modified = np.array([1]*self.n_init) #modified = 1, otherwise 0'''
+        looked_counter = 0
+        left_counter = self.graph.number_of_nodes()
+        #normalize stage
+        #for now, cyclic ordering assumption: start from the 1st index to last idx, hence for-loop
+        #need merge check for every node passed, by w[i] > 1
+        #while np.any(modified[list(self.graph.nodes)]):
+        while looked_counter < left_counter:
+            #for i in range(n_init):
+            '''for visu purpose, use the self.round'''
+            if self.visu and self.round < 1:
+                self.R_strings.append("++ new normalization cycle ++")
+                self.R_strings.append("++ i, n, valency, m ++")
+            for i in list(self.graph.nodes):
+                #print(i, looked_counter, left_counter, modified[i])
+                '''
+                #check if it is already deleted, if yes, skip:
+                if self.deleted[i]: #deleted in prev round
+                    modified[i] = 0 #set modified to 0
+                    print("already deleted:",i)
+                    continue
+                '''
+                #check if all vertices are already unmodified:
+                #if np.any(modified) == False:
+                if looked_counter >= left_counter:
+                    break
+                
+                if modified[i] == 0: #if a vertex is already unmodified, skip it
+                    looked_counter += 1 
+                    continue
+                
+                #recalculate all of the values:
+                valency = self.valencies[i] #get vertex's valency
+                m = None
+                neighbours = list(self.graph[i]) #get the neighbours of i
+                len_neighbours = len(neighbours)
+                #check all of the conditions based on the valency
+                if valency == self.n-1:
+                    ##always check for merge - i.e w[i] > 1
+                    self.vertex_placement_last(i, 1, valency, neighbours, len_neighbours)
+                    self.post_placement(i, neighbours, len_neighbours, modified)
+                    left_counter -= 1; looked_counter = 0
+                elif (valency > np.ceil(self.n/2)) and (valency == np.max(self.valencies)):
+                    self.vertex_placement_last(i, 2, valency, neighbours, len_neighbours)
+                    self.post_placement(i, neighbours, len_neighbours, modified)
+                    left_counter -= 1; looked_counter = 0
+                elif valency <= 1:
+                    self.vertex_placement_first(i, 3, valency, neighbours, len_neighbours)
+                    self.post_placement(i, neighbours, len_neighbours, modified)
+                    left_counter -= 1; looked_counter = 0
+                elif valency == 2:
+                    self.vertex_placement_first(i, 4, valency, neighbours, len_neighbours)
+                    #check if the neigbours are already connected:
+                    if self.graph.has_edge(neighbours[0], neighbours[1]):
+                        self.valencies[neighbours] -= 1 #subtract the valencies
+                    else:
+                        self.graph.add_edge(neighbours[0], neighbours[1]) #fill an edge between j
+                    self.sum_valencies -= self.valencies[i] #subtract the sum_valencies by i only, because of the fill between j
+                    self.valencies[i] = 0 #set valency[i] = 0
+                    self.n -= 1 #decrease n
+                    self.graph.remove_node(i) #delete node from graph
+                    self.deleted[i] = True
+                    modified[neighbours] = 1
+                    left_counter -= 1; looked_counter = 0
+                else:
+                    #m = np.min([self.sum_valencies/self.n, np.floor(self.n**(1/4) + 3)])
+                    mean_v = self.sum_valencies/self.n
+                    n_fourth = np.floor(self.n**(1/4) + 3)
+                    m = n_fourth
+                    if mean_v < n_fourth: #sorter
+                        m = mean_v
+                    if valency <= m:
+                        #R5:
+                        if clique_check_1(self.graph, neighbours):
+                            self.vertex_placement_first(i, 5, valency, neighbours, len_neighbours, m)
+                            self.post_placement(i, neighbours, len_neighbours, modified)
+                            left_counter -= 1; looked_counter = 0
+                        #R6:
+                        else:
+                            #merge rule
+                            bool_subset, j_node = check_subset_1(self.graph, neighbours)
+                            if bool_subset:
+                                self.merge_forest.add_edge(j_node, i) #merge i into j, add directed edge j->i
+                                self.w[j_node] += 1 #increment weight
+                                if self.visu and self.round < 1:
+                                    self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 6, merged "+str(i)+" to "+str(j_node))
+                                    self.R_switch = True
+                                if self.visu:
+                                    self.R_counters[5] += 1
+                                self.post_placement(i, neighbours, len_neighbours, modified)
+                                left_counter -= 1; looked_counter = 0
+                            else:
+                                #print("goes into else below subset check")
+                                looked_counter += 1 
+                    else: #if it's not into any of the rules
+                        #print("goes into no rule applied")
+                        looked_counter += 1        
+                modified[i] = 0 #set vertex as unmodified
+
+            #print per cycle here:
+            if self.visu and self.R_switch and self.round < 1:
+                for s in self.R_strings:
+                    print(s)
+                self.R_strings = [] #empty the strings container
+                self.R_switch = False #turn switch off    
+    '''end of normalize stage'''
+    
+    '''Separate Stage'''
+    def separate_1(self):
+        #global deleted, e, w, first_zero, last_zero, merge_forest
+        if self.visu and self.round < 1:
+            print("\n---- Separation stage ----")
+            
+        if self.visu:
+            separate_placed_round = 0
+            
+        #n_init = graph.number_of_nodes() #actual graph size after eliminations (if happened before this)
+
+        '''RCM part'''
+        #1, d=0, pick vertex e with max valency:
+        d_prime = 0
+        #n_nodes = get_total_nodes(graph, graph.shape[0]) #current total nodes
+        '''valency calculation must be done in the very first step'''
+        #valencies = np.array([len(graph[i]) for i in graph.nodes]) #array of valency, not ordered monotonicly (not contiguous) increasing, there maybe cutoff somewhere
+        e_sep = np.argmax(self.valencies) #get the node with max valency immediately since valencies is contiguous
+        if self.visu and self.round < 1:
+            print("step 1, e, valency[e]:", e_sep, self.valencies[e_sep])
+        
+        #2, need to find a set of M with max distansce from e, which requires BFS or djikstra:
+        #print("#2: ")
+        distances = nx.single_source_shortest_path_length(self.graph, e_sep) #dict of {node: distance}, it is unsorted
+        #conn_components = np.where(distances != np.inf)[0] #indexes of connected components within the subgraph where e resides
+        s = len(distances) #total connected components
+        d = np.max(list(distances.values())) #max distance from e
+        M = [vert for vert in distances if distances[vert] == d]  #set of vertices with max distance from e
+
+        if self.visu and self.round < 1:
+            print("step 2, d, M, s:",d,M,s)
+            
+        #3, if d'>d, d'=d, pick a vertex from M with max valency, back to 2 if the first e is close to the second e
+        loopcount = 0 #for repetition statistics
+        while d>d_prime:
+            if self.visu and self.round < 1:
+                print("step 3: ")
+                print("d > d', goto 2")
+            #print("d, d_prime, e_sep",d, d_prime, e_sep)
+            d_prime = d
+            max_vertex,_ = get_max_valency(M, self.valencies) #probably need to be replaced, because valencies indexes doesnt correspond to full valency of nodes
+            #print("M, valencies",M, valencies)
+            e_sep = max_vertex
+
+            #do 2 again:
+            distances = nx.single_source_shortest_path_length(self.graph, e_sep) #dict of {node: distance}, it is unsorted
+            #conn_components = np.where(distances != np.inf)[0] #indexes of connected components within the subgraph where e resides
+            s = len(distances) #total connected components
+            d = np.max(list(distances.values())) #max distance from e
+            M = [vert for vert in distances if distances[vert] == d]  #set of vertices with max distance from e
+            loopcount+=1
+            
+            if self.visu and self.round < 1:
+                print("step 2, d, M, s:",d,M,s)
+        #print("RCM loopcount", loopcount)
+        
+        '''end of RCM'''
+        d = int(d)
+        
+        #4, get the N_k, n_k from e, 0<=k<=d, d=max distance, k \in Z
+        #print("#3.5: n_k from e, 0<=k<=d, d=max distance")
+        '''fill all N and n:'''
+        N = []
+        n = np.zeros(d+1)
+        for i in range(0, d+1):
+            N.append([k for k,v in distances.items() if v==i])
+            n[i] = len(N[i])
+        if self.visu and self.round < 1:
+            print("step 4, n_k:",n)
+        
+        #5, Compute the partial sums v_k= sum_{i<=k} n_i (numpy.cumsum):
+        v = np.cumsum(n)
+        if self.visu and self.round < 1:
+            print("step 5, v:",v)
+        
+        #6, Compute the k where min(v_d-v_k,v_k-n_k)/n_k is max, with the smallest n_k.
+        max_idx = None
+        max_val = -np.inf
+        possible_ks = []
+        c_ks = np.zeros(d+1)
+        for k in range(d+1):
+            c_k = np.min([v[d] - v[k], v[k] - n[k]])/n[k]
+            c_ks[k] = c_k #for another n_k possibilites
+            if c_k > max_val:
+                max_val = c_k; max_idx = k;
+            #print(c_k,"[",v[d] - v[k], v[k] - n[k],"]", n[k])
+        #look for smallest n_k:
+        for i in range(c_ks.shape[0]):
+            if c_ks[i] == max_val:
+                possible_ks.append(i)
+        k = None
+        if len(possible_ks) <= 1:
+            k = max_idx
+        else:
+            k = possible_ks[np.argmin(n[possible_ks])]
+        if self.visu and self.round < 1:
+            print("step 6, k=",k)
+        
+
+        #tried = np.array([0]*self.n); tried[e_sep] = 1 #is this still usable?
+        
+        #step 8: compute the b_i for i\in N_k, sort N_k in increasing order of b_i:
+        b = np.zeros(self.n_init)
+        #i_idxs = N[k]
+        for node_i in N[k]:
+            out_w_nodes = np.intersect1d(self.graph[node_i], N[k+1])
+            b[node_i] = np.sum(self.w[out_w_nodes]) #w = weights from normalization, need to know which value belongs to which
+            #print("gamma_i, N[k+1]",gamma_i, N[k+1])
+        sorted_b_Nk_idx = np.argsort(b[N[k]])
+        sorted_Nk = [N[k][i] for i in sorted_b_Nk_idx]
+        if self.visu and self.round < 1:
+            print("step 8:")
+            print("all b_i :",b)
+            print("sorted N[k] by b_i:",sorted_Nk)
+        #place the i with positive b_i last:
+        for i in reversed(sorted_Nk):
+            if b[i] > 0: #place i last when b[i] > 0
+                if self.w[i] > 1:
+                    ordered_list = get_ordered_list_merged_vertex(self.merge_forest, i)
+                    len_e = len(self.e)
+                    len_ord_list = len(ordered_list)
+                    self.e[len_e + self.last_zero - len_ord_list + 1 : len_e + self.last_zero + 1] = ordered_list
+                    self.last_zero -= len_ord_list
+                    if self.visu:
+                        self.place_loc[ordered_list] = -1
+                        self.rounds_e[ordered_list] = self.round
+                        separate_placed_round += len_ord_list
+                    if self.visu and self.round < 1:
+                        print("weight[i] > 1, place merge-tree alongside",i,",placed list: ",ordered_list)
+                else:
+                    self.e[self.last_zero] = i
+                    if self.visu:
+                        self.place_loc[i] = -1
+                        self.rounds_e[i] = self.round
+                        separate_placed_round += 1
+                    self.last_zero -= 1
+                    if self.visu and self.round < 1:
+                        print("placed",i,"last")
+                #update nodes data:
+                self.sum_valencies -= (self.valencies[i] + len(list(self.graph[i]))) #subtract the sum_valencies by the deleted nodes
+                self.valencies[i] = 0 #set valency[i] = 0
+                self.valencies[list(self.graph[i])] -= 1 #update valencies[j] -= 1
+                self.n -= 1 #decrease n
+                self.graph.remove_node(i) #delete node from graph
+                self.deleted[i] = True
+        
+        '''display grid here'''
+        '''in step 4 before the inner while loop a display
+        of the vertices as a p x q gray image - encode distances <k,k,k+1,>k+1
+        as light gray, black, dark gray, white. You can stop the algorithm
+        after the first round; then larger instances can be created.'''
+        
+        if self.visu and self.round < 1:
+            print("****grid display:")
+            print("grid for k =",k)
+            Nbk = []; Nak = []
+
+            Nbk = list(chain.from_iterable(N[:k]))
+            #print("n",n)
+            try: 
+                Nak = list(chain.from_iterable(N[k+2:]))
+            except:
+                print("n[k+2] unreachable")
+
+            #transform vertex index to coordinate:
+            #flatten N<k + N_k + N_k+1 + N>k+1:
+
+            A = np.zeros((self.p, self.q)) #matrix color placeholder
+            #fill color on coordinate:
+            for i in range(self.p*self.q):
+                vertex_id = i
+                x_idx = vertex_id%self.q
+                y_idx = int(vertex_id/self.q)
+                #fill color on x_idx, y_idx:
+                if vertex_id in Nbk:
+                    #print(x_idx, y_idx, "light gray")
+                    A[y_idx, x_idx] = 1
+                elif vertex_id in N[k]:
+                    #print(x_idx, y_idx, "black")
+                    A[y_idx, x_idx] = 2
+                elif vertex_id in N[k+1]:
+                    #print(x_idx, y_idx, "darkgray")
+                    A[y_idx, x_idx] = 3
+                elif vertex_id in Nak:
+                    #print(x_idx, y_idx, "white")
+                    A[y_idx, x_idx] = 4
+                #else:
+                    #print(x_idx, y_idx, "blue")
+            #print(A)
+            data = A+0.5 #for colouring purpose, the range is between discrete numbers
+            #print(data)
+            # create discrete colormap
+            colours = ['blue', '#d3d3d3','black','#A9A9A9', 'white'] 
+            #colours = ['blue', '#d3d3d3',(0.1, 0.2, 0.5),'#A9A9A9', 'white']
+            #print("RGBA", colors.to_rgba('blue', alpha=None))
+            cmap = colors.ListedColormap(colours)
+            bounds = np.arange(0, len(colours)+1, 1)
+            norm = colors.BoundaryNorm(bounds, cmap.N)
+            fig, ax = plt.subplots()
+            ax.imshow(data, cmap=cmap, norm=norm, origin="upper")
+            # draw gridlines
+            ax.grid(which='major', axis='both', linestyle='-', color='k', linewidth=2)
+            ax.set_xticks(np.arange(-.5, self.q, 1));
+            ax.set_yticks(np.arange(-.5, self.p, 1));
+            plt.show()
+            print("****end of grid display")
+        
+        '''end of grid display'''
+        
+        '''grid separator data for display at the end of algorithm'''
+        self.Nks.append(N[k])
+        '''end of data for display'''
+        
+        #tried[N[k]] = 1 #mark all i \in N_k as tried
+        if self.visu:
+            self.separate_placed_rounds.append(separate_placed_round)
+    '''end of separate stage'''
+    
+    '''eli'''
+    def elimination_ordering_1(self):
+        while self.graph.number_of_nodes() > 0:
+            if self.graph.number_of_nodes() == 0:
+                break
+            self.normalize_1()
+            if self.graph.number_of_nodes() == 0:
+                break
+            if not self.comp_stack[0]: #pop the first element of the stack
+                _ = self.comp_stack.pop(0)
+            else:
+                self.separate_1()
+            self.round += 1
+            
+'''Separate stage helper'''
 '''dijkstra https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm''' 
 
 #function to find max valency from nodes
@@ -766,22 +1114,6 @@ if __name__ == "__main__":
     '''
     p=64;q=64
     grid = grid_generator(p,q)
-    eonx = elimination_ordering_class(grid, visualization=True, p=p, q=q)
-    start= time.time()
-    #eonx.separate(grid)
-    eonx.elimination_ordering(grid)
-    print(time.time()-start)
-    print(eonx.e)
-    grid = grid_generator(p,q)
-    r = eliminate(grid, eonx.e, join_tree=True)
-    print(r[0])
-    r = absorption(eonx.e, r[2], r[3])
-    print(r[2], r[3])
-    '''
-    
-    
-    p=128;q=128
-    grid = grid_generator(p,q)
     eonx = elimination_ordering_class(grid, visualization=False, p=p, q=q)
     start = time.time()
     #eonx.elimination_ordering()
@@ -789,9 +1121,9 @@ if __name__ == "__main__":
     print(time.time()-start)
     grid = grid_generator(p,q)
     #print(eonx.e)
-    r = eliminate(grid, eonx.e)
-    print(r[0])
-    
+    #r = eliminate(grid, eonx.e)
+    #print(r[0])
+    '''
     '''
     graph = nx.Graph([(0,1),(0,2),(0,3),(1,3),(2,3),(1,2)])
     gamma_i = [0,1,2,3]
@@ -804,3 +1136,25 @@ if __name__ == "__main__":
     print(clique_check_1(graph, gamma_i))
     cProfile.run('_repeat()', sort='cumtime')
     '''
+    
+#    p=5;q=5
+#    grid = grid_generator(p,q)
+#    print(grid.edges)
+#    subgrid = grid.subgraph([0,5,1,7,6,22])
+#    print(subgrid.edges)
+#    conn_comp = nx.connected_components(subgrid)
+#    print(list(conn_comp))
+#    eonx = elimination_ordering_class(grid, visualization=False, p=p, q=q)
+#    eonx.separate()
+#    
+#    m = 25
+#    subg = nx.connected_components(grid)
+#    def _repeat():
+#        for i in range(1000):
+#            subg = nx.connected_components(grid)
+#            subg = [list(g) for g in list(subg)]
+#    cProfile.run('_repeat()', sort='cumtime')
+    g = nx.Graph([(0,1)])
+    eonx = elimination_ordering_class(g, visualization=False)
+    eonx.separate()
+    print(g.nodes)
