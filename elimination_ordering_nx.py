@@ -32,9 +32,11 @@ class elimination_ordering_class:
         '''
         self.graph = graph
         self.n_init = self.graph.number_of_nodes() #initial graph size, usable for static vectors
+        '''for v2 of eli (component processing)'''
         self.n = self.n_init #dynamic graph size  
-        self.comp_stack = [self.graph.nodes] #first, fill with all of the nodes, each element of the stack is a list of connected components
-        self.stack_counter = self.n_init #initialize the stack counter by the number of nodes (maybe used maybe not)
+        self.comp_stack = [list(self.graph.nodes)] #first, fill with all of the nodes, each element of the stack is a list of connected components
+        print(self.comp_stack)
+        '''end of v2'''
         self.e = np.array([-1]*self.n) #for now the placeholder is an array of -1
         self.w = np.array([1]*self.n) #weight vector for merge forest
         self.merge_forest = nx.Graph() #merge forest for merging procedures
@@ -534,7 +536,7 @@ class elimination_ordering_class:
             self.R_strings.append("++++ Normalization Stage ++++") #print this only if normalize is not empty
         modified = np.array([1]*self.n_init) #modified = 1, otherwise 0'''
         looked_counter = 0
-        left_counter = self.graph.number_of_nodes()
+        left_counter = self.n
         #normalize stage
         #for now, cyclic ordering assumption: start from the 1st index to last idx, hence for-loop
         #need merge check for every node passed, by w[i] > 1
@@ -545,17 +547,8 @@ class elimination_ordering_class:
             if self.visu and self.round < 1:
                 self.R_strings.append("++ new normalization cycle ++")
                 self.R_strings.append("++ i, n, valency, m ++")
-            for i in list(self.graph.nodes):
-                #print(i, looked_counter, left_counter, modified[i])
-                '''
-                #check if it is already deleted, if yes, skip:
-                if self.deleted[i]: #deleted in prev round
-                    modified[i] = 0 #set modified to 0
-                    print("already deleted:",i)
-                    continue
-                '''
+            for i in self.comp_stack[0]:
                 #check if all vertices are already unmodified:
-                #if np.any(modified) == False:
                 if looked_counter >= left_counter:
                     break
                 
@@ -655,7 +648,6 @@ class elimination_ordering_class:
         d_prime = 0
         #n_nodes = get_total_nodes(graph, graph.shape[0]) #current total nodes
         '''valency calculation must be done in the very first step'''
-        #valencies = np.array([len(graph[i]) for i in graph.nodes]) #array of valency, not ordered monotonicly (not contiguous) increasing, there maybe cutoff somewhere
         e_sep = np.argmax(self.valencies) #get the node with max valency immediately since valencies is contiguous
         if self.visu and self.round < 1:
             print("step 1, e, valency[e]:", e_sep, self.valencies[e_sep])
@@ -663,7 +655,7 @@ class elimination_ordering_class:
         #2, need to find a set of M with max distansce from e, which requires BFS or djikstra:
         #print("#2: ")
         distances = nx.single_source_shortest_path_length(self.graph, e_sep) #dict of {node: distance}, it is unsorted
-        #conn_components = np.where(distances != np.inf)[0] #indexes of connected components within the subgraph where e resides
+        conn_comps = sorted(distances)
         s = len(distances) #total connected components
         d = np.max(list(distances.values())) #max distance from e
         M = [vert for vert in distances if distances[vert] == d]  #set of vertices with max distance from e
@@ -724,7 +716,6 @@ class elimination_ordering_class:
             c_ks[k] = c_k #for another n_k possibilites
             if c_k > max_val:
                 max_val = c_k; max_idx = k;
-            #print(c_k,"[",v[d] - v[k], v[k] - n[k],"]", n[k])
         #look for smallest n_k:
         for i in range(c_ks.shape[0]):
             if c_ks[i] == max_val:
@@ -736,10 +727,7 @@ class elimination_ordering_class:
             k = possible_ks[np.argmin(n[possible_ks])]
         if self.visu and self.round < 1:
             print("step 6, k=",k)
-        
-
-        #tried = np.array([0]*self.n); tried[e_sep] = 1 #is this still usable?
-        
+                
         #step 8: compute the b_i for i\in N_k, sort N_k in increasing order of b_i:
         b = np.zeros(self.n_init)
         #i_idxs = N[k]
@@ -852,12 +840,15 @@ class elimination_ordering_class:
         self.Nks.append(N[k])
         '''end of data for display'''
         
-        #tried[N[k]] = 1 #mark all i \in N_k as tried
         if self.visu:
             self.separate_placed_rounds.append(separate_placed_round)
+        '''post separate: get connected components'''
+        
+        '''end of post-separate'''
+            
     '''end of separate stage'''
     
-    '''eli'''
+    '''eli specialized for component processing'''
     def elimination_ordering_1(self):
         while self.graph.number_of_nodes() > 0:
             if self.graph.number_of_nodes() == 0:
@@ -865,8 +856,9 @@ class elimination_ordering_class:
             self.normalize_1()
             if self.graph.number_of_nodes() == 0:
                 break
-            if not self.comp_stack[0]: #pop the first element of the stack
-                _ = self.comp_stack.pop(0)
+            if self.n == 0: #pop the first element of the stack
+                self.comp_stack.pop(0)
+                self.n = len(self.comp_stack[0])
             else:
                 self.separate_1()
             self.round += 1
@@ -1154,7 +1146,11 @@ if __name__ == "__main__":
 #            subg = nx.connected_components(grid)
 #            subg = [list(g) for g in list(subg)]
 #    cProfile.run('_repeat()', sort='cumtime')
-    g = nx.Graph([(0,1)])
-    eonx = elimination_ordering_class(g, visualization=False)
-    eonx.separate()
-    print(g.nodes)
+    p=5;q=5
+    grid = grid_generator(p,q)
+    eonx = elimination_ordering_class(grid, visualization=False, p=p, q=q)
+    eonx.normalize_1()
+    print(eonx.n)
+    print(grid.nodes)
+    d = nx.single_source_shortest_path_length(grid, 1)
+    print(sorted(d))
