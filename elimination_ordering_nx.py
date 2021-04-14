@@ -39,6 +39,7 @@ class elimination_ordering_class:
         self.e = np.array([-1]*self.n) #for now the placeholder is an array of -1
         self.w = np.array([1]*self.n) #weight vector for merge forest
         self.merge_forest = nx.Graph() #merge forest for merging procedures
+        self.modified = np.array([1]*self.n_init)
         self.deleted = np.array([False]*self.n)
         self.first_zero = 0; self.last_zero = -1
         
@@ -88,7 +89,7 @@ class elimination_ordering_class:
         if self.visu and self.round < 1:
             #print("\n++++ Normalization Stage ++++") 
             self.R_strings.append("++++ Normalization Stage ++++") #print this only if normalize is not empty
-        modified = np.array([1]*self.n_init) #modified = 1, otherwise 0'''
+        #modified = np.array([1]*self.n_init) #modified = 1, otherwise 0'''
         looked_counter = 0
         left_counter = self.graph.number_of_nodes()
         #normalize stage
@@ -115,7 +116,7 @@ class elimination_ordering_class:
                 if looked_counter >= left_counter:
                     break
                 
-                if modified[i] == 0: #if a vertex is already unmodified, skip it
+                if self.modified[i] == 0: #if a vertex is already unmodified, skip it
                     looked_counter += 1 
                     continue
                 
@@ -128,15 +129,15 @@ class elimination_ordering_class:
                 if valency == self.n-1:
                     ##always check for merge - i.e w[i] > 1
                     self.vertex_placement_last(i, 1, valency, neighbours, len_neighbours)
-                    self.post_placement(i, neighbours, len_neighbours, modified)
+                    self.post_placement(i, neighbours, len_neighbours, self.modified)
                     left_counter -= 1; looked_counter = 0
                 elif (valency > np.ceil(self.n/2)) and (valency == np.max(self.valencies)):
                     self.vertex_placement_last(i, 2, valency, neighbours, len_neighbours)
-                    self.post_placement(i, neighbours, len_neighbours, modified)
+                    self.post_placement(i, neighbours, len_neighbours, self.modified)
                     left_counter -= 1; looked_counter = 0
                 elif valency <= 1:
                     self.vertex_placement_first(i, 3, valency, neighbours, len_neighbours)
-                    self.post_placement(i, neighbours, len_neighbours, modified)
+                    self.post_placement(i, neighbours, len_neighbours, self.modified)
                     left_counter -= 1; looked_counter = 0
                 elif valency == 2:
                     self.vertex_placement_first(i, 4, valency, neighbours, len_neighbours)
@@ -150,7 +151,7 @@ class elimination_ordering_class:
                     self.n -= 1 #decrease n
                     self.graph.remove_node(i) #delete node from graph
                     self.deleted[i] = True
-                    modified[neighbours] = 1
+                    self.modified[neighbours] = 1
                     left_counter -= 1; looked_counter = 0
                 else:
                     #m = np.min([self.sum_valencies/self.n, np.floor(self.n**(1/4) + 3)])
@@ -163,7 +164,7 @@ class elimination_ordering_class:
                         #R5:
                         if clique_check_1(self.graph, neighbours):
                             self.vertex_placement_first(i, 5, valency, neighbours, len_neighbours, m)
-                            self.post_placement(i, neighbours, len_neighbours, modified)
+                            self.post_placement(i, neighbours, len_neighbours, self.modified)
                             left_counter -= 1; looked_counter = 0
                         #R6:
                         else:
@@ -177,7 +178,7 @@ class elimination_ordering_class:
                                     self.R_switch = True
                                 if self.visu:
                                     self.R_counters[5] += 1
-                                self.post_placement(i, neighbours, len_neighbours, modified)
+                                self.post_placement(i, neighbours, len_neighbours, self.modified)
                                 left_counter -= 1; looked_counter = 0
                             else:
                                 #print("goes into else below subset check")
@@ -185,7 +186,7 @@ class elimination_ordering_class:
                     else: #if it's not into any of the rules
                         #print("goes into no rule applied")
                         looked_counter += 1        
-                modified[i] = 0 #set vertex as unmodified
+                self.modified[i] = 0 #set vertex as unmodified
             
                 #sleep(0.5)
             #print per cycle here:
@@ -248,7 +249,7 @@ class elimination_ordering_class:
         self.n -= 1 #decrease n
         self.graph.remove_node(i) #delete node from graph
         self.deleted[i] = True
-        modified[neighbours] = 1
+        self.modified[neighbours] = 1
         
     '''end of normalize stage'''
     
@@ -394,7 +395,9 @@ class elimination_ordering_class:
                 #update nodes data:
                 self.sum_valencies -= (self.valencies[i] + len(list(self.graph[i]))) #subtract the sum_valencies by the deleted nodes
                 self.valencies[i] = 0 #set valency[i] = 0
-                self.valencies[list(self.graph[i])] -= 1 #update valencies[j] -= 1
+                neighbours = list(self.graph[i])
+                self.valencies[neighbours] -= 1 #update valencies[j] -= 1
+                self.modified[neighbours] = 1
                 self.n -= 1 #decrease n
                 self.graph.remove_node(i) #delete node from graph
                 self.deleted[i] = True
@@ -875,23 +878,15 @@ class elimination_ordering_class:
         while self.graph.number_of_nodes() > 0:
             if self.graph.number_of_nodes() == 0:
                 break
-#            print(self.n, self.comp_stack)
-#            print("NORMALIZE")
             self.normalize_1()
-#            print(eonx.e)
-#            print("graph = ", list(self.graph.nodes))
             if self.graph.number_of_nodes() == 0:
                 break
             if self.n == 0: #pop the top element of the stack
                 self.comp_stack.pop()
                 self.n = len(self.comp_stack[-1])
             else:
-#                print(self.n, self.comp_stack)
-#                print("SEPARATE")
                 self.separate_1()
                 self.n = len(self.comp_stack[-1]) #reset n
-#                print(eonx.e)
-#                print("graph = ", list(self.graph.nodes))
             self.round += 1
             
 '''Separate stage helper'''
