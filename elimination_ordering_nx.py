@@ -249,7 +249,7 @@ class elimination_ordering_class:
         self.n -= 1 #decrease n
         self.graph.remove_node(i) #delete node from graph
         self.deleted[i] = True
-        self.modified[neighbours] = 1
+        modified[neighbours] = 1
         
     '''end of normalize stage'''
     
@@ -539,7 +539,7 @@ class elimination_ordering_class:
         if self.visu and self.round < 1:
             #print("\n++++ Normalization Stage ++++") 
             self.R_strings.append("++++ Normalization Stage ++++") #print this only if normalize is not empty
-        modified = np.array([1]*self.n_init) #modified = 1, otherwise 0'''
+#        modified = np.array([1]*self.n_init) #modified = 1, otherwise 0'''
         looked_counter = 0
         left_counter = self.n
 #        print("current stack:",self.comp_stack[-1])
@@ -559,7 +559,7 @@ class elimination_ordering_class:
                 if self.deleted[i] == True: #skip if already deleted
                     continue
 #                print(i, looked_counter, left_counter, modified[i])
-                if modified[i] == 0: #if a vertex is already unmodified, skip it
+                if self.modified[i] == 0: #if a vertex is already unmodified, skip it
                     looked_counter += 1 
                     continue
                 
@@ -576,15 +576,15 @@ class elimination_ordering_class:
                 if valency == self.n-1:
                     ##always check for merge - i.e w[i] > 1
                     self.vertex_placement_last(i, 1, valency, neighbours, len_neighbours)
-                    self.post_placement(i, neighbours, len_neighbours, modified)
+                    self.post_placement(i, neighbours, len_neighbours, self.modified)
                     left_counter -= 1; looked_counter = 0
                 elif (valency > np.ceil(self.n/2)) and (valency == np.max(self.valencies)):
                     self.vertex_placement_last(i, 2, valency, neighbours, len_neighbours)
-                    self.post_placement(i, neighbours, len_neighbours, modified)
+                    self.post_placement(i, neighbours, len_neighbours, self.modified)
                     left_counter -= 1; looked_counter = 0
                 elif valency <= 1:
                     self.vertex_placement_first(i, 3, valency, neighbours, len_neighbours)
-                    self.post_placement(i, neighbours, len_neighbours, modified)
+                    self.post_placement(i, neighbours, len_neighbours, self.modified)
                     left_counter -= 1; looked_counter = 0
                 elif valency == 2:
                     self.vertex_placement_first(i, 4, valency, neighbours, len_neighbours)
@@ -598,7 +598,7 @@ class elimination_ordering_class:
                     self.n -= 1 #decrease n
                     self.graph.remove_node(i) #delete node from graph
                     self.deleted[i] = True
-                    modified[neighbours] = 1
+                    self.modified[neighbours] = 1
                     left_counter -= 1; looked_counter = 0
                 else:
                     #m = np.min([self.sum_valencies/self.n, np.floor(self.n**(1/4) + 3)])
@@ -611,7 +611,7 @@ class elimination_ordering_class:
                         #R5:
                         if clique_check_1(self.graph, neighbours):
                             self.vertex_placement_first(i, 5, valency, neighbours, len_neighbours, m)
-                            self.post_placement(i, neighbours, len_neighbours, modified)
+                            self.post_placement(i, neighbours, len_neighbours, self.modified)
                             left_counter -= 1; looked_counter = 0
                         #R6:
                         else:
@@ -625,7 +625,7 @@ class elimination_ordering_class:
                                     self.R_switch = True
                                 if self.visu:
                                     self.R_counters[5] += 1
-                                self.post_placement(i, neighbours, len_neighbours, modified)
+                                self.post_placement(i, neighbours, len_neighbours, self.modified)
                                 left_counter -= 1; looked_counter = 0
                             else:
                                 #print("goes into else below subset check")
@@ -633,7 +633,7 @@ class elimination_ordering_class:
                     else: #if it's not into any of the rules
                         #print("goes into no rule applied")
                         looked_counter += 1        
-                modified[i] = 0 #set vertex as unmodified
+                self.modified[i] = 0 #set vertex as unmodified
                 
             #print per cycle here:
             if self.visu and self.R_switch and self.round < 1:
@@ -662,10 +662,13 @@ class elimination_ordering_class:
         if len(self.comp_stack) == 1:
             e_sep = np.argmax(self.valencies) #get the node with max valency immediately since valencies is contiguous
         else: #if there are more than one connected components left, need to slice them
-            mask = np.ma.array([1]*len(self.valencies))
-            mask[self.comp_stack[-1]] = 0
-            mv = np.ma.masked_array(self.valencies, mask)
-            e_sep = np.argmax(mv)
+#            mask = np.ma.array([1]*len(self.valencies))
+#            mask[self.comp_stack[-1]] = 0
+#            mv = np.ma.masked_array(self.valencies, mask)
+#            e_sep = np.argmax(mv)
+#            e_sep, _ = get_max_valency(self.comp_stack[-1], self.valencies)
+            e_sep = np.max(self.valencies[self.comp_stack[-1]])
+            e_sep = np.where(self.valencies == e_sep)[0][0]
         if self.visu and self.round < 1:
             print("step 1, e, valency[e]:", e_sep, self.valencies[e_sep])
         
@@ -687,9 +690,10 @@ class elimination_ordering_class:
                 print("d > d', goto 2")
             #print("d, d_prime, e_sep",d, d_prime, e_sep)
             d_prime = d
-            max_vertex,_ = get_max_valency(M, self.valencies) #probably need to be replaced, because valencies indexes doesnt correspond to full valency of nodes
+            e_sep,_ = get_max_valency(M, self.valencies) #probably need to be replaced, because valencies indexes doesnt correspond to full valency of nodes
+#            e_sep = np.max(self.valencies[M])
+#            e_sep = np.where(self.valencies == e_sep)[0][0]
             #print("M, valencies",M, valencies)
-            e_sep = max_vertex
 
             #do 2 again:
             distances = nx.single_source_shortest_path_length(self.graph, e_sep) #dict of {node: distance}, it is unsorted
@@ -785,7 +789,9 @@ class elimination_ordering_class:
                 #update nodes data:
                 self.sum_valencies -= (self.valencies[i] + len(list(self.graph[i]))) #subtract the sum_valencies by the deleted nodes
                 self.valencies[i] = 0 #set valency[i] = 0
-                self.valencies[list(self.graph[i])] -= 1 #update valencies[j] -= 1
+                neighbours = list(self.graph[i])
+                self.modified[neighbours] = 1
+                self.valencies[neighbours] -= 1 #update valencies[j] -= 1
                 self.n -= 1 #decrease n
                 self.graph.remove_node(i) #delete node from graph
                 self.deleted[i] = True
@@ -1174,7 +1180,7 @@ if __name__ == "__main__":
     grid = grid_generator(p,q)
     eonx = elimination_ordering_class(grid, visualization=False, p=p, q=q)
     #eonx.elimination_ordering_1()
-    cProfile.run('eonx.elimination_ordering()', sort='cumtime')
+    cProfile.run('eonx.elimination_ordering_1()', sort='cumtime')
     #print(sorted(eonx.e))
     
 
