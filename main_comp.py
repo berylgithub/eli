@@ -21,7 +21,7 @@ def visu():
     
     #elimination ordering:
     EO = eo.elimination_ordering_class(grid, visualization=True, p=p, q=q) #must be on global scope
-    e = EO.elimination_ordering(grid)
+    e = EO.elimination_ordering()
     return None
 
 def generate_iperm():
@@ -52,7 +52,7 @@ def computation():
     rootpath = "matrices/grid/"
     #gridpath = "matrices/grid/grids/"
     ipermpath = rootpath+"ndmetis_iperm/"
-    outputpath = rootpath+"grid_p=q_algo3_18032021_kgeq7.jt.p"
+    outputpath = rootpath+"grid_p=q_algo4.1_16042021_k8.p"
     
     files = np.array([f for f in listdir(ipermpath) if isfile(join(ipermpath, f))])
     print(files)
@@ -90,32 +90,52 @@ def computation():
         #elimination ordering:
         start = time.time()
         EO = eo.elimination_ordering_class(grid, visualization=False, p=p, q=q) #must be on global scope
-        e = EO.elimination_ordering(grid)
+        EO.elimination_ordering_1()
         end = time.time()
-        es.append(e)
+        es.append(EO.e)
         elapsed = end-start
         times.append(elapsed)
         print("time elapsed for elimination ordering: ",elapsed,"s")
         #grid is deleted above, so reload here:
         grid = eo.grid_generator(p,q)
         #eliminate + jointree generation:
-        fill_eli, _, C_vs, sep_idxs = eo.eliminate(grid, e,join_tree=True); print("eli||generating jointree for ",str_pq,"completed!")
-        _, _, max_C, max_K = eo.absorption(e, C_vs, sep_idxs); print("eli||absorption for",str_pq,"completed!")
+        start = time.time()
+        fill_eli, _, C_vs, sep_idxs = eo.eliminate(grid, EO.e,join_tree=True); print("eli||generating jointree for ",str_pq,"completed!")
+        elapsed = time.time()-start
         fills_eli.append(fill_eli)
-        max_C_eli.append(max_C); max_K_eli.append(max_K); print("eli||max_C, max_K:",max_C, max_K)
         print("eli||fills",fill_eli)
+        print("eli||time for elimination =",elapsed)
+        
+        '''
+        start = time.time()
+        _, _, max_C, max_K = eo.absorption(e, C_vs, sep_idxs); print("eli||absorption for",str_pq,"completed!")
+        elapsed = time.time()-start
+        print("eli||time for absorption =",elapsed)
+        max_C_eli.append(max_C); max_K_eli.append(max_K); print("eli||max_C, max_K:",max_C, max_K)
+        '''
+
         fills_eli_ratio.append(float(fill_eli/edges))
         print()
         #metis:
         grid = eo.grid_generator(p,q)
         metis_order = eo.iperm_to_orderlist(ipermpath+file)
+        start = time.time()
         fill_metis, _, C_vs, sep_idxs = eo.eliminate(grid, metis_order, join_tree=True)
+        elapsed = time.time()-start
+        print("metis", fill_metis)
+        print("metis||time for elimination =",elapsed)
         fills_metis.append(fill_metis)
-        print("metis||generating jointree for ",str_pq,"completed!")    
+        print("metis||generating jointree for ",str_pq,"completed!")  
+        
+        '''
+        start = time.time()
         _, _, max_C, max_K = eo.absorption(metis_order, C_vs, sep_idxs)
+        elapsed = time.time()-start
+        print("metis||time for absorption =",elapsed)
         max_C_metis.append(max_C); max_K_metis.append(max_K); print("metis||max_C, max_K:",max_C, max_K)
         print("metis||absorption for",str_pq,"completed!")
-        print("metis", fill_metis)
+        '''
+        
         fills_metis_ratio.append(float(fill_metis/edges))
         print()
         if (fill_eli != 0) and (fill_metis != 0): 
