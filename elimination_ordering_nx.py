@@ -772,6 +772,7 @@ class elimination_ordering_class:
                 self.n -= 1 #decrease n
                 self.graph.remove_node(i) #delete node from graph
                 self.deleted[i] = True #set i as deleted
+#                self.norm_deleted.append(i)
         
         '''display grid here'''
         '''in step 4 before the inner while loop a display
@@ -845,30 +846,29 @@ class elimination_ordering_class:
         
         '''post separate: get connected components'''
         prev_top = self.comp_stack.pop() #pop the top
-        print("prev_top",prev_top)
-        print("deleted",self.norm_deleted)
+        print("prev_top",len(prev_top))
+        print("deleted",len(self.norm_deleted))
         #10, determine the main connected components from the e node using DFS/BFS:
         main_c = list(nx.dfs_preorder_nodes(self.graph, e_sep))
         #11, determine the complement which was separated from e node:
         complement = set(conn_comps) - set(main_c) - set(N[k])
         #12, determine the residual components which may contain more than one subgraphs:
         '''new stack mechanism'''
-        residual = set(prev_top) - set(self.norm_deleted+list(conn_comps)) # residual = the previous whole element - (deleted nodes in normalization + current connected components)
-        print("residual",residual)
+#        residual = set(prev_top) - set(self.norm_deleted+list(conn_comps)) # residual = the previous whole element - (deleted nodes in normalization + current connected components)
+#        print("residual",residual)
         '''end of new stack mechanism'''
-#        residual = set(self.graph.nodes) - set(conn_comps) #leftover after normalization, in grid's case, this is {}
+        residual = set(self.graph.nodes) - set(conn_comps) #leftover after normalization, in grid's case, this is {}
         #13, fill the stack:
-        #if residual is not empty:
         '''new stack mechanism'''
-        if residual:
-            self.comp_stack.append(sorted(residual))
-        self.comp_stack.append(sorted(complement))
-        self.comp_stack.append(sorted(main_c)) #main component must be on top
-        '''end of new stack mechanism'''
 #        if residual:
-#            self.comp_stack = [sorted(residual), sorted(complement), sorted(main_c)] #the top element must always be the main component
-#        else:
-#            self.comp_stack = [sorted(complement), sorted(main_c)]
+#            self.comp_stack.append(sorted(residual))
+#        self.comp_stack.append(sorted(complement))
+#        self.comp_stack.append(sorted(main_c)) #main component must be on top
+        '''end of new stack mechanism'''
+        if residual:
+            self.comp_stack = [sorted(residual), sorted(complement), sorted(main_c)] #the top element must always be the main component
+        else:
+            self.comp_stack = [sorted(complement), sorted(main_c)]
         '''end of post-separate'''
     '''end of separate stage'''
     
@@ -879,6 +879,7 @@ class elimination_ordering_class:
             if self.graph.number_of_nodes() == 0: #if the graph is empty, break
                 break
             self.norm_deleted = [] #reset deleted list
+            print("top of stack = ",self.comp_stack[-1], self.deleted[self.comp_stack[-1]], len(self.graph.nodes))
             self.normalize_1() #do normalize stage
             if self.graph.number_of_nodes() == 0:
                 break
@@ -911,7 +912,7 @@ class elimination_ordering_class:
                     stack_info = sorted(stack_info)
                     avg = round(np.average(stack_info))
                     if len(self.comp_stack) > 7:
-                        print("after separate stage: ",stack_info)
+                        print("after separate stage: ",stack_info, avg)
                     else:
                         print("after separate stage: ",stack_info, ", mean component size = ",avg)
                 
@@ -1182,10 +1183,10 @@ if __name__ == "__main__":
     import cProfile, pprofile
     
     '''the main caller'''
-    p=32;q=32  #grid size
+    p=4;q=4  #grid size
     grid = grid_generator(p,q) #generate the grid
     start = time.time() #timer start
-    eonx = elimination_ordering_class(grid, visualization=True, p=p, q=q) #initialize object from the elimination_ordering_class
+    eonx = elimination_ordering_class(grid, visualization=True, r0_verbose=True, p=p, q=q) #initialize object from the elimination_ordering_class
     eonx.elimination_ordering_1()
     print("actual running time (without profiler overhead) = ",time.time()-start)
 #    cProfile.run('eonx.elimination_ordering_1()', sort='cumtime')
