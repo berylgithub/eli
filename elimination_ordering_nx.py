@@ -546,12 +546,14 @@ class elimination_ordering_class:
                 self.R_strings.append("++ i, n, valency, m ++")
             for i in self.comp_stack[-1]: #loop all vertex i within the top(stack)
                 if looked_counter >= left_counter: #stopping condition checker
+                    self.comp_stack[-1][:] = [elem for elem in self.comp_stack[-1] if self.deleted[elem] == False] #eliminate deleted elements from the stack's top
                     break
-                if self.deleted[i] == True: #skip if already deleted
-                    continue
+#                if self.deleted[i] == True: #skip if already deleted
+#                    continue
                 if self.modified[i] == 0: #if a vertex is already unmodified, skip it & increment the looked_counter
                     looked_counter += 1 
                     continue
+#                print(i)
                 #recalculate all of the values:
                 valency = self.valencies[i] #get vertex's valency
                 m = None #set empty m
@@ -622,7 +624,9 @@ class elimination_ordering_class:
                         #print("goes into no rule applied")
                         looked_counter += 1  #no rules applicable, then increment looked_counter      
                 self.modified[i] = 0 #set node i as unmodified
-                
+            
+            self.comp_stack[-1][:] = [elem for elem in self.comp_stack[-1] if self.deleted[elem] == False] #eliminate deleted elements from the stack's top
+            
             #print per cycle here:
             if self.visu and self.R_switch and self.round < 1 and self.verbose:
                 for s in self.R_strings:
@@ -772,7 +776,7 @@ class elimination_ordering_class:
                 self.n -= 1 #decrease n
                 self.graph.remove_node(i) #delete node from graph
                 self.deleted[i] = True #set i as deleted
-#                self.norm_deleted.append(i)
+                self.norm_deleted.append(i)
         
         '''display grid here'''
         '''in step 4 before the inner while loop a display
@@ -845,13 +849,12 @@ class elimination_ordering_class:
             self.separate_placed_rounds.append(separate_placed_round)
         
         '''post separate: get connected components'''
-        prev_top = self.comp_stack.pop() #pop the top
-        print("prev_top",len(prev_top))
-        print("deleted",len(self.norm_deleted))
+#        prev_top = self.comp_stack.pop() #pop the top
+
         #10, determine the main connected components from the e node using DFS/BFS:
         main_c = list(nx.dfs_preorder_nodes(self.graph, e_sep))
         #11, determine the complement which was separated from e node:
-        complement = set(conn_comps) - set(main_c) - set(N[k])
+        complement = set(conn_comps) - set(main_c + self.norm_deleted)
         #12, determine the residual components which may contain more than one subgraphs:
         '''new stack mechanism'''
 #        residual = set(prev_top) - set(self.norm_deleted+list(conn_comps)) # residual = the previous whole element - (deleted nodes in normalization + current connected components)
@@ -878,18 +881,13 @@ class elimination_ordering_class:
         while self.graph.number_of_nodes() > 0: 
             if self.graph.number_of_nodes() == 0: #if the graph is empty, break
                 break
+            print("stack elem = ",self.comp_stack[-1], self.deleted[self.comp_stack[-1]])
+
             self.norm_deleted = [] #reset deleted list
-            print("top of stack = ",self.comp_stack[-1], self.deleted[self.comp_stack[-1]], len(self.graph.nodes))
             self.normalize_1() #do normalize stage
             if self.graph.number_of_nodes() == 0:
                 break
             
-            if self.visu:
-                '''get the stack info:'''
-                stack_info = [len(elem) for elem in self.comp_stack]
-                stack_info = sorted(stack_info)
-                avg = round(np.average(stack_info))
-                
             if self.n == 0: #if the top of the stack is empty
                 self.comp_stack.pop() #pop/delete the top element of the stack
                 
@@ -905,7 +903,7 @@ class elimination_ordering_class:
                         
             else:
                 self.separate_1()
-                
+
                 if self.visu:
                     '''get the stack info:'''
                     stack_info = [len(elem) for elem in self.comp_stack]
@@ -1183,17 +1181,17 @@ if __name__ == "__main__":
     import cProfile, pprofile
     
     '''the main caller'''
-    p=4;q=4  #grid size
+    p=32;q=32  #grid size
     grid = grid_generator(p,q) #generate the grid
     start = time.time() #timer start
-    eonx = elimination_ordering_class(grid, visualization=True, r0_verbose=True, p=p, q=q) #initialize object from the elimination_ordering_class
+    eonx = elimination_ordering_class(grid, visualization=True, r0_verbose=False, p=p, q=q) #initialize object from the elimination_ordering_class
     eonx.elimination_ordering_1()
     print("actual running time (without profiler overhead) = ",time.time()-start)
 #    cProfile.run('eonx.elimination_ordering_1()', sort='cumtime')
     '''to check the statistic of fills:'''
     grid = grid_generator(p,q) #regenerate grid
-#    v = eliminate(grid, eonx.e) #eliminate the grid using elimination ordering from eli
-#    print("fills = ", v[0])
+    v = eliminate(grid, eonx.e) #eliminate the grid using elimination ordering from eli
+    print("fills = ", v[0])
     generate_separator_display(p, q, eonx.Nks)
     
     
