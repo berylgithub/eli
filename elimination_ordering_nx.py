@@ -31,6 +31,7 @@ class elimination_ordering_class:
         '''for v4 of eli (component processing)'''
         self.n = self.n_init #dynamic graph size, in v4's case it is equal to the size of top(comp_stack) (or in this case, self.comp_stack[-1])  
         self.comp_stack = [list(self.graph.nodes)] #first, fill with all of the nodes, each element of the stack is a list of connected components
+        self.stack_tracker = ["main"] #for debug purpose
 #        self.norm_deleted = [] #list of deleted nodes in normalization, to help the post-separation stage, this will be reset when normalize stage starts.
         '''end of v4'''
         self.e = np.array([-1]*self.n) #for now the placeholder is an array of -1
@@ -849,8 +850,10 @@ class elimination_ordering_class:
             self.separate_placed_rounds.append(separate_placed_round)
         
         '''post separate: get connected components'''
-#        prev_top = self.comp_stack.pop() #pop the top
-
+        prev_top = set(self.comp_stack.pop()) #pop the top
+#        prev_top = prev_top.intersection(set(self.graph.nodes)) #actual prev_top, excluding deleted nodes
+#        self.stack_tracker.pop() #
+        
         #10, determine the main connected components from the e node using DFS/BFS:
         main_c = list(nx.dfs_preorder_nodes(self.graph, e_sep))
         #11, determine the complement which was separated from e node:
@@ -860,13 +863,23 @@ class elimination_ordering_class:
 #        residual = set(prev_top) - set(self.norm_deleted+list(conn_comps)) # residual = the previous whole element - (deleted nodes in normalization + current connected components)
 #        print("residual",residual)
         '''end of new stack mechanism'''
-        residual = set(self.graph.nodes) - set(conn_comps) #leftover after normalization, in grid's case, this is {}
+#        residual = set(self.graph.nodes) - set(conn_comps) #leftover after normalization, in grid's case, this is {}
+        residual = prev_top - set(conn_comps)#leftover after normalization, in grid's case, this is {}
+        
+#        print("\nmain_c",sorted(main_c))
+#        print("second",sorted(complement))
+#        print("residual",sorted(residual))
+        
+        
         #13, fill the stack:
         '''new stack mechanism'''
         if residual:
             self.comp_stack.append(sorted(residual))
+#            self.stack_tracker.append("res") #
         self.comp_stack.append(sorted(complement))
         self.comp_stack.append(sorted(main_c)) #main component must be on top
+#        self.stack_tracker.append("second") #
+#        self.stack_tracker.append("main") #
         '''end of new stack mechanism'''
 #        if residual:
 #            self.comp_stack = [sorted(residual), sorted(complement), sorted(main_c)] #the top element must always be the main component
@@ -881,7 +894,9 @@ class elimination_ordering_class:
         while self.graph.number_of_nodes() > 0: 
             if self.graph.number_of_nodes() == 0: #if the graph is empty, break
                 break
-#            print("stack elem = ",self.comp_stack[-1], self.deleted[self.comp_stack[-1]])
+            
+#            print("stack elem before norm = ",self.stack_tracker, self.comp_stack[-1], self.deleted[self.comp_stack[-1]])
+#            print("graph left = ",len(self.graph.nodes), list(self.graph.nodes))
 
 #            self.norm_deleted = [] #reset deleted list
             self.normalize_1() #do normalize stage
@@ -890,6 +905,7 @@ class elimination_ordering_class:
             
             if self.n == 0: #if the top of the stack is empty
                 self.comp_stack.pop() #pop/delete the top element of the stack
+#                self.stack_tracker.pop() #
                 
                 if self.visu:
                     '''get the stack info:'''
@@ -908,7 +924,6 @@ class elimination_ordering_class:
                         
             else:
                 self.separate_1()
-
                 if self.visu:
                     '''get the stack info:'''
                     stack_info = [len(elem) for elem in self.comp_stack]
@@ -923,7 +938,28 @@ class elimination_ordering_class:
                         print("after separate stage: ["+string0,"...("+str(avg)+")...", string1+"]")
                     else:
                         print("after separate stage: ",stack_info, ", mean component size = ",avg)
-                
+            
+            # quick & dirty way of removing duplicate entries in the stack:
+#            removal_switch = False
+#            while np.all(self.deleted[self.comp_stack[-1]]) == True:
+#                self.comp_stack.pop()
+#                removal_switch = True
+#            if self.visu and removal_switch:
+#                '''get the stack info:'''
+#                stack_info = [len(elem) for elem in self.comp_stack]
+#                stack_info = sorted(stack_info)
+#                avg = round(np.average(stack_info))
+#                if len(self.comp_stack) > 7:
+#                    string0 = string1 = ""
+#                    for i in range(3):
+#                        string0 += str(stack_info[i])+","
+#                    for i in range(len(stack_info)-3, len(stack_info)):
+#                        string1 += ","+str(stack_info[i])
+#                    print("after removing duplicates: ["+string0,"...("+str(avg)+")...", string1+"]")
+#                else:
+#                    print("after removing duplicates: ",stack_info, ", mean component size = ",avg)
+#                removal_switch = False
+            print(self.deleted[self.comp_stack[-1]], len(self.comp_stack[-1]))
             self.n = len(self.comp_stack[-1]) #reset n with the length of the top element of the stack
             self.round += 1 #increment round, although the rounds are not so relevant anymore within this scheme
             
@@ -1191,7 +1227,7 @@ if __name__ == "__main__":
     import cProfile, pprofile
     
     '''the main caller'''
-    p=32;q=32  #grid size
+    p=128;q=128  #grid size
     grid = grid_generator(p,q) #generate the grid
     start = time.time() #timer start
     eonx = elimination_ordering_class(grid, visualization=True, r0_verbose=False, p=p, q=q) #initialize object from the elimination_ordering_class
@@ -1202,7 +1238,7 @@ if __name__ == "__main__":
     '''to check the statistic of fills:'''
     grid = grid_generator(p,q) #regenerate grid
     v = eliminate(grid, eonx.e) #eliminate the grid using elimination ordering from eli
-    print("fills = ", v[0])
+    print("fills = ", v[0], "; len order == total nodes: ",len(eonx.e) == p*q)
     generate_separator_display(p, q, eonx.Nks)
     
     
