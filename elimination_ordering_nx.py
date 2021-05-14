@@ -550,6 +550,7 @@ class elimination_ordering_class:
 #                    self.comp_stack[-1][:] = [elem for elem in self.comp_stack[-1] if self.deleted[elem] == False] #eliminate deleted elements from the stack's top
                     break
                 if self.deleted[i] == True: #skip if already deleted
+#                    looked_counter += 1
                     continue
                 if self.modified[i] == 0: #if a vertex is already unmodified, skip it & increment the looked_counter
                     looked_counter += 1 
@@ -851,6 +852,7 @@ class elimination_ordering_class:
         
         '''post separate: get connected components'''
         prev_top = set(self.comp_stack.pop()) #pop the top
+#        prev_top = self.comp_stack.pop()
 #        prev_top = prev_top.intersection(set(self.graph.nodes)) #actual prev_top, excluding deleted nodes
 #        self.stack_tracker.pop() #
         
@@ -910,7 +912,7 @@ class elimination_ordering_class:
                 if self.visu:
                     '''get the stack info:'''
                     stack_info = [len(elem) for elem in self.comp_stack]
-                    stack_info = sorted(stack_info)
+#                    stack_info = sorted(stack_info)
                     avg = round(np.average(stack_info))
                     if len(self.comp_stack) > 7:
                         string0 = string1 = ""
@@ -927,7 +929,7 @@ class elimination_ordering_class:
                 if self.visu:
                     '''get the stack info:'''
                     stack_info = [len(elem) for elem in self.comp_stack]
-                    stack_info = sorted(stack_info)
+#                    stack_info = sorted(stack_info)
                     avg = round(np.average(stack_info))
                     if len(self.comp_stack) > 7:
                         string0 = string1 = ""
@@ -940,25 +942,25 @@ class elimination_ordering_class:
                         print("after separate stage: ",stack_info, ", mean component size = ",avg)
             
             # quick & dirty way of removing duplicate entries in the stack:
-#            removal_switch = False
-#            while np.all(self.deleted[self.comp_stack[-1]]) == True:
-#                self.comp_stack.pop()
-#                removal_switch = True
-#            if self.visu and removal_switch:
-#                '''get the stack info:'''
-#                stack_info = [len(elem) for elem in self.comp_stack]
+            removal_switch = False
+            while np.all(self.deleted[self.comp_stack[-1]]) == True:
+                self.comp_stack.pop()
+                removal_switch = True
+            if self.visu and removal_switch:
+                '''get the stack info:'''
+                stack_info = [len(elem) for elem in self.comp_stack]
 #                stack_info = sorted(stack_info)
-#                avg = round(np.average(stack_info))
-#                if len(self.comp_stack) > 7:
-#                    string0 = string1 = ""
-#                    for i in range(3):
-#                        string0 += str(stack_info[i])+","
-#                    for i in range(len(stack_info)-3, len(stack_info)):
-#                        string1 += ","+str(stack_info[i])
-#                    print("after removing duplicates: ["+string0,"...("+str(avg)+")...", string1+"]")
-#                else:
-#                    print("after removing duplicates: ",stack_info, ", mean component size = ",avg)
-#                removal_switch = False
+                avg = round(np.average(stack_info))
+                if len(self.comp_stack) > 7:
+                    string0 = string1 = ""
+                    for i in range(3):
+                        string0 += str(stack_info[i])+","
+                    for i in range(len(stack_info)-3, len(stack_info)):
+                        string1 += ","+str(stack_info[i])
+                    print("after removing duplicates: ["+string0,"...("+str(avg)+")...", string1+"]")
+                else:
+                    print("after removing duplicates: ",stack_info, ", mean component size = ",avg)
+                removal_switch = False
             print(self.deleted[self.comp_stack[-1]], len(self.comp_stack[-1]))
             self.n = len(self.comp_stack[-1]) #reset n with the length of the top element of the stack
             self.round += 1 #increment round, although the rounds are not so relevant anymore within this scheme
