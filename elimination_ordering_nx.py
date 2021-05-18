@@ -912,7 +912,7 @@ class elimination_ordering_class:
                 if self.visu:
                     '''get the stack info:'''
                     stack_info = [len(elem) for elem in self.comp_stack]
-#                    stack_info = sorted(stack_info)
+                    stack_info = sorted(stack_info)
                     avg = round(np.average(stack_info))
                     if len(self.comp_stack) > 7:
                         string0 = string1 = ""
@@ -929,7 +929,7 @@ class elimination_ordering_class:
                 if self.visu:
                     '''get the stack info:'''
                     stack_info = [len(elem) for elem in self.comp_stack]
-#                    stack_info = sorted(stack_info)
+                    stack_info = sorted(stack_info)
                     avg = round(np.average(stack_info))
                     if len(self.comp_stack) > 7:
                         string0 = string1 = ""
@@ -949,7 +949,7 @@ class elimination_ordering_class:
             if self.visu and removal_switch:
                 '''get the stack info:'''
                 stack_info = [len(elem) for elem in self.comp_stack]
-#                stack_info = sorted(stack_info)
+                stack_info = sorted(stack_info)
                 avg = round(np.average(stack_info))
                 if len(self.comp_stack) > 7:
                     string0 = string1 = ""
@@ -961,8 +961,12 @@ class elimination_ordering_class:
                 else:
                     print("after removing duplicates: ",stack_info, ", mean component size = ",avg)
                 removal_switch = False
-            print(self.deleted[self.comp_stack[-1]], len(self.comp_stack[-1]))
-            self.n = len(self.comp_stack[-1]) #reset n with the length of the top element of the stack
+#            print(self.deleted[self.comp_stack[-1]], len(self.comp_stack[-1]))
+            
+            if np.any(self.deleted[self.comp_stack[-1]]): #check for if the stack contains some deleted value:
+                self.n = len(np.where(self.deleted[self.comp_stack[-1]] == False)[0])
+            else:
+                self.n = len(self.comp_stack[-1]) #reset n with the length of the top element of the stack
             self.round += 1 #increment round, although the rounds are not so relevant anymore within this scheme
             
         if self.visu:
@@ -1232,7 +1236,7 @@ if __name__ == "__main__":
     p=128;q=128  #grid size
     grid = grid_generator(p,q) #generate the grid
     start = time.time() #timer start
-    eonx = elimination_ordering_class(grid, visualization=True, r0_verbose=False, p=p, q=q) #initialize object from the elimination_ordering_class
+    eonx = elimination_ordering_class(grid, visualization=False, r0_verbose=False, p=p, q=q) #initialize object from the elimination_ordering_class
     print(len(eonx.comp_stack[0]))
     eonx.elimination_ordering_1()
     print("actual running time (without profiler overhead) = ",time.time()-start)
