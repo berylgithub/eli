@@ -1233,11 +1233,11 @@ if __name__ == "__main__":
     import cProfile, pprofile
     
     '''the main caller'''
-    p=128;q=128  #grid size
+    p=512;q=512  #grid size
     grid = grid_generator(p,q) #generate the grid
     start = time.time() #timer start
     eonx = elimination_ordering_class(grid, visualization=False, r0_verbose=False, p=p, q=q) #initialize object from the elimination_ordering_class
-    print(len(eonx.comp_stack[0]))
+#    print(len(eonx.comp_stack[0]))
     eonx.elimination_ordering_1()
     print("actual running time (without profiler overhead) = ",time.time()-start)
 #    cProfile.run('eonx.elimination_ordering_1()', sort='cumtime')
