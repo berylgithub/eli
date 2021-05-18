@@ -52,7 +52,7 @@ def computation():
     rootpath = "matrices/grid/"
     #gridpath = "matrices/grid/grids/"
     ipermpath = rootpath+"ndmetis_iperm/"
-    outputpath = rootpath+"grid_p=q_algo4.1_16042021_k8.p"
+    outputpath = rootpath+"grid_p=q_algo4.2_18052021_k8.p"
     
     files = np.array([f for f in listdir(ipermpath) if isfile(join(ipermpath, f))])
     print(files)
