@@ -91,3 +91,8 @@ The new flow is recursive, or possible to be non-recursive by introducing a stac
 ========================================== <br/>
 12.04.2021: <br/>
 Reset modified tag after separation vs modify neighborhood tags during separation.
+
+==========================================<br/>
+10.06.2021: <br/>
+<li> permuting normalization's order reduces the fills -> changes the elimination ordering, however doesn't change the separator's locations 
+<li> from quick observation, separator's locations change when the algorithm is reverted back to the older version, i.e., non-stack version vs stack version. The non-stack version results in worst-case separators. The stack version only produces worst-case separators on the upper-left-half of the grid.
