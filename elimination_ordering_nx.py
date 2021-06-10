@@ -64,7 +64,7 @@ class elimination_ordering_class:
                 
             #specialized for separate stage visualization:
             self.separate_placed_rounds = [] #list of rounds which indicates when the nodes are elminated in separate-stage
-        
+            self.len_conn = [] #list of length of connected components during separate stage
         #for separator display visualization:
         self.Nks = [] #list of separator indexes per round for all rounds
         
@@ -540,12 +540,14 @@ class elimination_ordering_class:
             self.R_strings.append("++++ Normalization Stage ++++") #print this only if normalize is not empty
         looked_counter = 0 #set the counter which counts the number of looked vertices within this stage
         left_counter = self.n #set the counter which counts the number of vertices left to be looked
+        rand_top = np.random.permutation(self.comp_stack[-1])
         while looked_counter < left_counter:  #if the total of looked counter >= left counter, then stop the while loop
             '''for visu purpose, use the self.round'''
             if self.visu and self.round < 1 and self.verbose:
                 self.R_strings.append("++ new normalization cycle ++")
                 self.R_strings.append("++ i, n, valency, m ++")
-            for i in self.comp_stack[-1]: #loop all vertex i within the top(stack)
+#            for i in self.comp_stack[-1]: #loop all vertex i within the top(stack)
+            for i in rand_top: #loop all vertex i within the top(stack)
                 if looked_counter >= left_counter: #stopping condition checker
 #                    self.comp_stack[-1][:] = [elem for elem in self.comp_stack[-1] if self.deleted[elem] == False] #eliminate deleted elements from the stack's top
                     break
@@ -849,6 +851,7 @@ class elimination_ordering_class:
         
         if self.visu:
             self.separate_placed_rounds.append(separate_placed_round)
+            self.len_conn.append(len(conn_comps))
         
         '''post separate: get connected components'''
         prev_top = set(self.comp_stack.pop()) #pop the top
@@ -980,7 +983,7 @@ class elimination_ordering_class:
             if len(self.separate_placed_rounds) > 0:
                 print("Total number of vertices placed in Separate stage per round:")
                 for i,r in enumerate(self.separate_placed_rounds):
-                    print("Round",i+1,":",r,"vertices")
+                    print("Round",i+1,":",r,"of",self.len_conn[i],"vertices")
             
 '''================== END OF ELIMINATION ORDERING CLASS =================='''
 
@@ -1209,8 +1212,13 @@ def generate_separator_display(p,q,Nks):
     
     offset = 0.5
     A += offset
-    
-    colours = np.array([(255-max(0,280*(sepsize)/(max_sepsize)-25))/255 for sepsize in sepsizes]) # the gray level should be: (255 - max(0,280*(sepsize)/(max_sepsize)-25))/255
+    '''
+    max(0,280*separator-size/max-separator-size-25)
+    255*log(separator size)/max log(separator size)
+    '''
+    colours = np.array([(255 - 255*np.sqrt(sepsize)/np.sqrt(max_sepsize))/255 for sepsize in sepsizes]) # the gray level should be: (255 - max(0,280*(sepsize)/(max_sepsize)-25))/255
+#    colours = np.array([(255-max(0,280*(sepsize)/(max_sepsize)-25))/255 for sepsize in sepsizes]) # the gray level should be: (255 - max(0,280*(sepsize)/(max_sepsize)-25))/255
+
 #    max_whiteness = 0.75
 #    colours = np.linspace(0, max_whiteness, length) #from black to gray-ish
 #    print(colours)
@@ -1233,7 +1241,7 @@ if __name__ == "__main__":
     import cProfile, pprofile
     
     '''the main caller'''
-    p=512;q=512  #grid size
+    p=32;q=32  #grid size
     grid = grid_generator(p,q) #generate the grid
     start = time.time() #timer start
     eonx = elimination_ordering_class(grid, visualization=False, r0_verbose=False, p=p, q=q) #initialize object from the elimination_ordering_class
