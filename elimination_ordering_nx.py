@@ -1172,19 +1172,20 @@ def absorption(e, C_vs):
             J = C_vs[i_elem]["J"]
             K = C_vs[i_elem]["K"]
             # check if each K_v < C_v[i]:
-            parent_K = set(J + K)
+            parent = set(J + K)
+            del_elem = []
             for k in K:
                 J_c = C_vs[k]["J"]
                 K_c = C_vs[k]["K"]
-                child_K = set(J_c + K_c)
-                if child_K < parent_K:
-                    print(i_elem, k, J_c)
+                child = set(J_c + K_c)
+                print(i_elem, k, child < parent, K)
+                if child < parent:
                     # absorb child to parent:
                     C_vs[i_elem]["J"] += J_c
-                    for l in J_c:
-                        C_vs[i_elem]["K"].remove(l)
+                    del_elem += J_c
                     del C_vs[k]
-                    print(C_vs[i_elem])
+            # remove all J of child from parent's K:
+            C_vs[i_elem]["K"] = [k for k in C_vs[i_elem]["K"] if k not in del_elem]
         except KeyError:
             continue
     print(C_vs)
@@ -1332,9 +1333,9 @@ if __name__ == "__main__":
     eonx.elimination_ordering_1()
     print(eonx.e, e)
     grid = grid_generator(p,q)
-    count_fill, C_vs = eliminate(grid,e,True)
+    count_fill, C_vs = eliminate(grid,eonx.e,True)
     print(C_vs)
-    _ = absorption(e, C_vs)
+    _ = absorption(eonx.e, C_vs)
     
     
 #    profiler = pprofile.Profile()
