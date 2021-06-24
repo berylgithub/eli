@@ -1174,18 +1174,24 @@ def absorption(e, C_vs):
             # check if each K_v < C_v[i]:
             parent = set(J + K)
             del_elem = []
+            del_idx = []
             for k in K:
                 J_c = C_vs[k]["J"]
                 K_c = C_vs[k]["K"]
                 child = set(J_c + K_c)
-                print(i_elem, k, child < parent, K)
+                print(i_elem, k, child < parent, C_vs[i_elem], C_vs[k])
                 if child < parent:
                     # absorb child to parent:
                     C_vs[i_elem]["J"] += J_c
                     del_elem += J_c
-                    del C_vs[k]
+                    del_idx.append(k)
+#                    del C_vs[k]
+                    print(del_elem, "inner loop")
             # remove all J of child from parent's K:
-            C_vs[i_elem]["K"] = [k for k in C_vs[i_elem]["K"] if k not in del_elem]
+            print(del_elem)
+            C_vs[i_elem]["K"] = [l for l in C_vs[i_elem]["K"] if l not in del_elem]
+            for d in del_idx:
+                del C_vs[d]
         except KeyError:
             continue
     print(C_vs)
@@ -1331,9 +1337,10 @@ if __name__ == "__main__":
     e = np.arange(p*q)
     eonx = elimination_ordering_class(grid, visualization=False, r0_verbose=False, p=p, q=q)
     eonx.elimination_ordering_1()
-    print(eonx.e, e)
+    print(e, e)
     grid = grid_generator(p,q)
-    count_fill, C_vs = eliminate(grid,eonx.e,True)
+    count_fill, C_vs = eliminate(grid,e,True)
+    print(count_fill)
     print(C_vs)
     _ = absorption(eonx.e, C_vs)
     
