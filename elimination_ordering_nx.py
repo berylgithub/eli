@@ -944,11 +944,14 @@ class elimination_ordering_class:
                     else:
                         print("after separate stage: ",stack_info, ", mean component size = ",avg)
             
-            # quick & dirty way of removing duplicate entries in the stack:
+            
+            
+            # quick & dirty way of removing a stack element which contains deleted vertices:
             removal_switch = False
             while np.all(self.deleted[self.comp_stack[-1]]) == True:
                 self.comp_stack.pop()
                 removal_switch = True
+            
             if self.visu and removal_switch:
                 '''get the stack info:'''
                 stack_info = [len(elem) for elem in self.comp_stack]
@@ -966,10 +969,14 @@ class elimination_ordering_class:
                 removal_switch = False
 #            print(self.deleted[self.comp_stack[-1]], len(self.comp_stack[-1]))
             
+            
+            # deletes some elements of the stack elements which are already deleted
             if np.any(self.deleted[self.comp_stack[-1]]): #check for if the stack contains some deleted value:
                 self.n = len(np.where(self.deleted[self.comp_stack[-1]] == False)[0])
+                print(np.where(self.deleted[self.comp_stack[-1]] == True), self.round)
             else:
                 self.n = len(self.comp_stack[-1]) #reset n with the length of the top element of the stack
+            
             self.round += 1 #increment round, although the rounds are not so relevant anymore within this scheme
             
         if self.visu:
@@ -1072,7 +1079,7 @@ def check_subset_1(graph, gamma_i):
     return bool_subset, j_get
 
 '''============== Utilities =============='''
-def eliminate(graph, elimination_order, join_tree=False):
+def eliminate_old(graph, elimination_order, join_tree=False):
     '''elimination function: eliminates the vertices based on the order resulted from elimination ordering algorithms
     - takes in the vertices order from the any elimination ordering algorithms (e.g. METIS' nested dissection)
     - fill will be added when the "center" of the vertex is eliminated, e.g., 1-2-3, eliminate 2, fill(1-3), fill_count+=1
@@ -1104,7 +1111,7 @@ def eliminate(graph, elimination_order, join_tree=False):
         return_data = (count_fill, graph)
     return return_data
 
-def absorption(e, C_vs, sep_idxs):
+def absorption_old(e, C_vs, sep_idxs):
     '''absorption method, takes in elimination ordering, C_v and separator indexes'''
     length = len(e)
     absorbed = np.array([False]*length)
@@ -1112,15 +1119,77 @@ def absorption(e, C_vs, sep_idxs):
         #print("C_vs[i]", C_vs[i])
         for j in range(i, length): #absorb into the earliest:
             if (set(C_vs[j]) < set(C_vs[i])) and (absorbed[j] == False): #check if C_v[j] is in C_v[i]
+#                prev_idx = sep_idxs[i]
                 sep_idxs[i] += sep_idxs[j]+1 #move separator of i by sep_idx[j]+1
                 absorbed[j] = True #delete C_v[j] by marking it as "abvsorbed"
 
-    C_vs = np.array(C_vs)
+#    C_vs = np.array(C_vs)
     C_vs = np.delete(C_vs, np.where(absorbed == True)[0])
     sep_idxs = np.delete(sep_idxs, np.where(absorbed == True)[0])
-    #print(C_vs, sep_idxs)
-    #calculate C_v and K_v sizes:
+    # calculate C_v and K_v sizes:
     length = C_vs.shape[0]
+    C_sizes = np.array([C_v.shape[0] for C_v in C_vs]) 
+    K_sizes = np.array([C_sizes[i]-sep_idxs[i]-1 for i in range(length)]) #K_size = C_size - sep_idx - 1
+    max_C = np.max(C_sizes)
+    max_K = np.max(K_sizes)
+    return C_sizes, K_sizes, max_C, max_K
+
+
+def eliminate(graph, elimination_order, join_tree=False):
+    '''elimination function: eliminates the vertices based on the order resulted from elimination ordering algorithms
+    - takes in the vertices order from the any elimination ordering algorithms (e.g. METIS' nested dissection)
+    - fill will be added when the "center" of the vertex is eliminated, e.g., 1-2-3, eliminate 2, fill(1-3), fill_count+=1
+    - for now, assume the fill will be comb(n,2), so if there are 3 vertices which depend on an eliminated vertex, there will be 6 fills
+    - if join_tree = True, then the procedure of generating C_v and separator indexes for join tree will be executed, otherwise it will be skipped
+    '''
+    count_fill = 0
+    if join_tree:
+        C_vs = {}
+    for v in elimination_order:
+        #find neighbours and fill the fill-in indexes:
+        K_v = list(graph[v])
+        if join_tree:
+            C_vs[v] = {"J":[v], "K":K_v}
+        fill_idxs = list(combinations(K_v, 2))
+        if len(fill_idxs) > 0:
+            for fill in fill_idxs:
+                if not graph.has_edge(fill[0], fill[1]):
+                    graph.add_edge(fill[0], fill[1]) #add fill
+                    count_fill += 1
+        graph.remove_node(v) #eliminate v
+    return_data = None
+    if join_tree:
+        return_data = count_fill, C_vs 
+    else:
+        return_data = count_fill
+    return return_data
+
+
+def absorption(e, C_vs):
+    '''absorption method, takes in elimination ordering, C_v'''
+    for i_elem in list(C_vs.keys())[:]:
+        try:
+            J = C_vs[i_elem]["J"]
+            K = C_vs[i_elem]["K"]
+            # check if each K_v < C_v[i]:
+            parent_K = set(J + K)
+            for k in K:
+                J_c = C_vs[k]["J"]
+                K_c = C_vs[k]["K"]
+                child_K = set(J_c + K_c)
+                if child_K < parent_K:
+                    print(i_elem, k, J_c)
+                    # absorb child to parent:
+                    C_vs[i_elem]["J"] += J_c
+                    for l in J_c:
+                        C_vs[i_elem]["K"].remove(l)
+                    del C_vs[k]
+                    print(C_vs[i_elem])
+        except KeyError:
+            continue
+    print(C_vs)
+
+                
     C_sizes = np.array([C_v.shape[0] for C_v in C_vs]) 
     K_sizes = np.array([C_sizes[i]-sep_idxs[i]-1 for i in range(length)]) #K_size = C_size - sep_idx - 1
     max_C = np.max(C_sizes)
@@ -1238,23 +1307,34 @@ def generate_separator_display(p,q,Nks):
 
 if __name__ == "__main__":
     import time
-    import cProfile, pprofile
+    import cProfile
+    #import pprofile
     
     '''the main caller'''
-    p=32;q=32  #grid size
-    grid = grid_generator(p,q) #generate the grid
-    start = time.time() #timer start
-    eonx = elimination_ordering_class(grid, visualization=False, r0_verbose=False, p=p, q=q) #initialize object from the elimination_ordering_class
-#    print(len(eonx.comp_stack[0]))
-    eonx.elimination_ordering_1()
-    print("actual running time (without profiler overhead) = ",time.time()-start)
-#    cProfile.run('eonx.elimination_ordering_1()', sort='cumtime')
-    '''to check the statistic of fills:'''
-    grid = grid_generator(p,q) #regenerate grid
-    v = eliminate(grid, eonx.e) #eliminate the grid using elimination ordering from eli
-    print("fills = ", v[0], "; len order == total nodes: ",len(eonx.e) == p*q)
-    generate_separator_display(p, q, eonx.Nks)
+#    p=32;q=32  #grid size
+#    grid = grid_generator(p,q) #generate the grid
+#    start = time.time() #timer start
+#    eonx = elimination_ordering_class(grid, visualization=False, r0_verbose=False, p=p, q=q) #initialize object from the elimination_ordering_class
+##    print(len(eonx.comp_stack[0]))
+#    eonx.elimination_ordering_1()
+#    print("actual running time (without profiler overhead) = ",time.time()-start)
+##    cProfile.run('eonx.elimination_ordering_1()', sort='cumtime')
+#    '''to check the statistic of fills:'''
+#    grid = grid_generator(p,q) #regenerate grid
+#    v = eliminate(grid, eonx.e) #eliminate the grid using elimination ordering from eli
+#    print("fills = ", v[0], "; len order == total nodes: ",len(eonx.e) == p*q)
+#    generate_separator_display(p, q, eonx.Nks)
     
+    p=4;q=3  #grid size
+    grid = grid_generator(p,q)
+    e = np.arange(p*q)
+    eonx = elimination_ordering_class(grid, visualization=False, r0_verbose=False, p=p, q=q)
+    eonx.elimination_ordering_1()
+    print(eonx.e, e)
+    grid = grid_generator(p,q)
+    count_fill, C_vs = eliminate(grid,e,True)
+    print(C_vs)
+    _ = absorption(e, C_vs)
     
     
 #    profiler = pprofile.Profile()
