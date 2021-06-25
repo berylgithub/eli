@@ -1165,43 +1165,47 @@ def eliminate(graph, elimination_order, join_tree=False):
     return return_data
 
 
-def absorption(e, C_vs):
+def absorption(C_vs):
     '''absorption method, takes in elimination ordering, C_v'''
-    for i_elem in list(C_vs.keys())[:]:
-        try:
-            J = C_vs[i_elem]["J"]
-            K = C_vs[i_elem]["K"]
-            # check if each K_v < C_v[i]:
-            parent = set(J + K)
-            del_elem = []
-            del_idx = []
-            for k in K:
-                J_c = C_vs[k]["J"]
-                K_c = C_vs[k]["K"]
-                child = set(J_c + K_c)
-                print(i_elem, k, child < parent, C_vs[i_elem], C_vs[k])
-                if child < parent:
-                    # absorb child to parent:
-                    C_vs[i_elem]["J"] += J_c
-                    del_elem += J_c
-                    del_idx.append(k)
-#                    del C_vs[k]
-                    print(del_elem, "inner loop")
-            # remove all J of child from parent's K:
-            print(del_elem)
-            C_vs[i_elem]["K"] = [l for l in C_vs[i_elem]["K"] if l not in del_elem]
-            for d in del_idx:
-                del C_vs[d]
-        except KeyError:
+    keys = list(C_vs.keys())
+    deleted_key = np.array([False]*len(keys))
+    for i_elem in keys:
+        if deleted_key[i_elem] == True:
             continue
-    print(C_vs)
-
-                
-    C_sizes = np.array([C_v.shape[0] for C_v in C_vs]) 
-    K_sizes = np.array([C_sizes[i]-sep_idxs[i]-1 for i in range(length)]) #K_size = C_size - sep_idx - 1
-    max_C = np.max(C_sizes)
-    max_K = np.max(K_sizes)
-    return C_sizes, K_sizes, max_C, max_K
+        J = C_vs[i_elem]["J"]
+        K = C_vs[i_elem]["K"]
+        # check if each K_v < C_v[i]:
+        parent = set(J + K)
+        del_elem = []
+        del_idx = []
+        for k in K:
+            if deleted_key[k] == True:
+                continue
+            J_c = C_vs[k]["J"]
+            K_c = C_vs[k]["K"]
+            child = set(J_c + K_c)
+            if child < parent:
+                # absorb child to parent:
+                C_vs[i_elem]["J"] += J_c
+                del_elem += J_c
+                del_idx.append(k)
+                deleted_key[k] = True
+        # remove all J of child from parent's K:
+        C_vs[i_elem]["K"] = [l for l in C_vs[i_elem]["K"] if l not in del_elem]
+    # delete some marked C:
+    deleted_key = np.where(deleted_key == True)[0]
+    for d in deleted_key:
+        del C_vs[d]
+    #compute max_K and max_C:
+    max_K = -np.inf; max_C = -np.inf
+    for c in C_vs:
+        length_K = len(C_vs[c]["K"])
+        length_C = length_K + len(C_vs[c]["J"])
+        if length_K > max_K:
+            max_K = length_K
+        if length_C > max_C:
+            max_C = length_C
+    return C_vs, max_C, max_K
     
 def adj_tuples_to_metis_file(graph, filename):
     '''write nx adjacency (tuples of edge) to file'''
@@ -1332,18 +1336,16 @@ if __name__ == "__main__":
 #    print("fills = ", v[0], "; len order == total nodes: ",len(eonx.e) == p*q)
 #    generate_separator_display(p, q, eonx.Nks)
     
-    p=4;q=3  #grid size
+    p=256;q=256  #grid size
     grid = grid_generator(p,q)
     e = np.arange(p*q)
     eonx = elimination_ordering_class(grid, visualization=False, r0_verbose=False, p=p, q=q)
     eonx.elimination_ordering_1()
-    print(e, e)
     grid = grid_generator(p,q)
-    count_fill, C_vs = eliminate(grid,e,True)
+    count_fill, C_vs = eliminate(grid,eonx.e,True)
     print(count_fill)
-    print(C_vs)
-    _ = absorption(eonx.e, C_vs)
-    
+    C_vs, max_C, max_K = absorption(C_vs)
+    print(C_vs, max_C, max_K)    
     
 #    profiler = pprofile.Profile()
 #    with profiler:
