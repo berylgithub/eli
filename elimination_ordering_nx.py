@@ -540,6 +540,7 @@ class elimination_ordering_class:
             self.R_strings.append("++++ Normalization Stage ++++") #print this only if normalize is not empty
         looked_counter = 0 #set the counter which counts the number of looked vertices within this stage
         left_counter = self.n #set the counter which counts the number of vertices left to be looked
+        np.random.seed(42) #set the random seed
         rand_top = np.random.permutation(self.comp_stack[-1])
         while looked_counter < left_counter:  #if the total of looked counter >= left counter, then stop the while loop
             '''for visu purpose, use the self.round'''
@@ -973,7 +974,7 @@ class elimination_ordering_class:
             # deletes some elements of the stack elements which are already deleted
             if np.any(self.deleted[self.comp_stack[-1]]): #check for if the stack contains some deleted value:
                 self.n = len(np.where(self.deleted[self.comp_stack[-1]] == False)[0])
-                print(np.where(self.deleted[self.comp_stack[-1]] == True), self.round)
+#                print(np.where(self.deleted[self.comp_stack[-1]] == True), self.round)
             else:
                 self.n = len(self.comp_stack[-1]) #reset n with the length of the top element of the stack
             
@@ -1336,16 +1337,17 @@ if __name__ == "__main__":
 #    print("fills = ", v[0], "; len order == total nodes: ",len(eonx.e) == p*q)
 #    generate_separator_display(p, q, eonx.Nks)
     
-    p=256;q=256  #grid size
+    p=4;q=3  #grid size
     grid = grid_generator(p,q)
     e = np.arange(p*q)
     eonx = elimination_ordering_class(grid, visualization=False, r0_verbose=False, p=p, q=q)
     eonx.elimination_ordering_1()
     grid = grid_generator(p,q)
     count_fill, C_vs = eliminate(grid,eonx.e,True)
+    print(eonx.e)
     print(count_fill)
     C_vs, max_C, max_K = absorption(C_vs)
-    print(C_vs, max_C, max_K)    
+#    print(C_vs, max_C, max_K)    
     
 #    profiler = pprofile.Profile()
 #    with profiler:
