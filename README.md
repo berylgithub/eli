@@ -95,4 +95,11 @@ Reset modified tag after separation vs modify neighborhood tags during separatio
 ==========================================<br/>
 10.06.2021: <br/>
 <li> permuting normalization's order reduces the fills -> changes the elimination ordering, however doesn't change the separator's locations 
-<li> from quick observation, separator's locations change when the algorithm is reverted back to the older version, i.e., non-stack version vs stack version. The non-stack version results in worst-case separators. The stack version only produces worst-case separators on the upper-left-half of the grid.
+<li> from quick observation, separator's locations change when the algorithm is reverted back to the older version, i.e., non-stack version vs stack version. The non-stack version results in worst-case separators. The stack version only produces worst-case separators on the upper-left-half of the grid.<br/>
+
+==========================================<br/>
+16.07.2021, new implementations required: <br/>
+<li> more efficient max valency computation.
+<li> new stack mechanism: push only tails.
+<li> merge subset and clique checking.
+<li> check dijkstra's algorithm complexity if O(n^2) then replace with more efficient algorithm.
