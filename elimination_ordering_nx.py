@@ -46,7 +46,7 @@ class elimination_ordering_class:
         self.valencies = np.array([len(self.graph[i]) for i in self.graph.nodes]) #valencies, valency[i] will be subtracted for each operation in a node
         self.sum_valencies = np.sum(self.valencies) #for calculating the mean_valency, the sum should be subtracted for each operation in a node
         self.max_valency = np.max(self.valencies) #precalculate the max valency, update during elimination
-        self.bool_max_val = False #switch to indicate whether the max_valency should be updated or not
+        self.maxval_count = np.count_nonzero(self.valencies == self.max_valency) #counter of max_valency value
         
         #for grid information only:
         self.p = p #row
@@ -236,6 +236,16 @@ class elimination_ordering_class:
         '''
         mode: 0 is the default, in most cases no need to change the parameter; 1 is specialized for the fill-in during elimination (currently only R4)
         '''
+        
+        '''maximum valency tracker:'''
+        #check if any valency == maxval are modified:
+        
+        #reset maximum valency:
+        if self.maxval_count == 0:
+            self.max_valency = np.max(self.valencies)
+            self.maxval_count = np.count_nonzero(self.valencies == self.max_valency)
+            
+        '''post placement:'''
         if mode==0:
             self.sum_valencies -= (self.valencies[i] + len_neighbours) #subtract the sum_valencies by the deleted nodes
             self.valencies[neighbours] -= 1 #update valencies[j] -= 1
@@ -246,6 +256,10 @@ class elimination_ordering_class:
         self.graph.remove_node(i) #delete node from graph
         self.deleted[i] = True #set i as deleted
         self.modified[neighbours] = 1 #set i's neighbours as modified
+        
+        
+        
+
         
     '''end of placement-routine'''
     
@@ -881,8 +895,30 @@ if __name__ == "__main__":
 #    C_vs, max_C, max_K = absorption(C_vs)
 #    print(C_vs, max_C, max_K)    
     
+    '''
+    Pprofile test
+    '''
 #    profiler = pprofile.Profile()
 #    with profiler:
 #        eonx.elimination_ordering()    
 #    profiler.print_stats()
 #    profiler.dump_stats("documentation/profile/pprofile_128_4.1.txt")
+    
+    '''
+    Other tests
+    '''
+#    def looptest(n=np.power(2, 26)):
+#        a = 0
+#        L = list(range(n))
+#        for i in L:
+#            a += i
+#            a += i
+##        for i in L:
+##            a += i
+##        for i in L:
+##            a += i
+#            
+#    cProfile.run('looptest()', sort='cumtime')
+    
+            
+        
