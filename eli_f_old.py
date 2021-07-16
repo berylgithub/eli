@@ -407,6 +407,53 @@ class elimination_ordering_class:
             self.separate_placed_rounds.append(separate_placed_round)
     '''end of separate stage'''
     
+    #procedure for last placement:    
+    def vertex_placement_last(self, i, rule, valency, neighbours, len_neighbours, m=0):
+        if self.w[i] > 1:
+            ordered_list = get_ordered_list_merged_vertex(self.merge_forest, i) #trace back the merge forest from i using BFS/DFS
+            len_e = len(self.e)
+            len_ord_list = len(ordered_list)
+            self.e[len_e + self.last_zero - len_ord_list + 1 : len_e + self.last_zero + 1] = ordered_list #place last on elimination the list obtained from tracing back the merge forest from i
+            if self.visu:
+                self.rounds_e[ordered_list] = self.round
+            self.last_zero -= len_ord_list #decrement last zero by the size of the ordered list 
+        else:
+            #add to the last zero and decrement the indexer:
+            self.e[self.last_zero] = i
+            if self.visu:
+                self.rounds_e[i] = self.round
+            self.last_zero -= 1
+            
+        if self.visu and self.round < 1 and self.verbose:
+            self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule "+str(rule)+", place "+str(i)+" last")
+            self.R_switch = True
+        if self.visu:
+            self.R_counters[rule-1] += 1
+
+
+    #procedure for first placement:
+    def vertex_placement_first(self, i, rule, valency, neighbours, len_neighbours, m=0):
+        if self.w[i] > 1:
+            ordered_list = get_ordered_list_merged_vertex(self.merge_forest, i) #trace back the merge forest from i using BFS/DFS
+            len_ord_list = len(ordered_list)
+            self.e[self.first_zero : self.first_zero + len_ord_list] = ordered_list #place first on elimination the list obtained from tracing back the merge forest from i
+            if self.visu:
+                self.rounds_e[ordered_list] = self.round
+            self.first_zero += len_ord_list #increment the first zero by the size of the ordered list
+        else:
+            #add to the first zero pos and increment the indexer:
+            self.e[self.first_zero] = i
+            if self.visu:
+                self.rounds_e[i] = self.round
+            self.first_zero += 1
+            
+        if self.visu and self.round < 1 and self.verbose:
+            self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule "+str(rule)+", place "+str(i)+" first")
+            self.R_switch = True
+        if self.visu:
+            self.R_counters[rule-1] += 1
+    
+    
     
     '''Combining both normalize and separate stage'''
     def elimination_ordering(self, log=False):
