@@ -99,7 +99,7 @@ Reset modified tag after separation vs modify neighborhood tags during separatio
 
 ==========================================<br/>
 16.07.2021, new implementations required: <br/>
-<li> more efficient max valency computation.
+<li> more efficient max valency computation. -- 2 versions tested:{using counter and reset; using pre-sorted array and counter}, direct max is faster, perhaps numpy's implementation make use of multiple cores (?) even when not explicitly asked.
 <li> new stack mechanism: push only tails.
-<li> merge subset and clique checking.
-<li> check dijkstra's algorithm complexity if O(n^2) then replace with more efficient algorithm.
+<li> merge subset and clique checking. -- completed, in grids case, no performance difference, due to no hit in R5 (only hits on R6/worst case scenario).
+<li> check dijkstra's algorithm complexity if O(n^2) then replace with more efficient algorithm. -- turns out networkx' implementation uses BFS, which is O(n+e); a special case of dijkstra for unweighted graphs.
