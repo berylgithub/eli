@@ -45,8 +45,11 @@ class elimination_ordering_class:
         '''calculate the valencies early, so that within the stages there will be no valencies re-calculation:'''
         self.valencies = np.array([len(self.graph[i]) for i in self.graph.nodes]) #valencies, valency[i] will be subtracted for each operation in a node
         self.sum_valencies = np.sum(self.valencies) #for calculating the mean_valency, the sum should be subtracted for each operation in a node
-        self.max_valency = np.max(self.valencies) #precalculate the max valency, update during elimination
-        self.maxval_count = np.count_nonzero(self.valencies == self.max_valency) #counter of max_valency value
+#        self.max_valency = np.max(self.valencies) #precalculate the max valency, update during elimination
+#        self.max_val_count = np.count_nonzero(self.valencies == self.max_valency) #counter of max_valency value
+#        self.sorted_valencies = np.sort(self.valencies) #for max_valency tracking
+#        self.max_val_indexer = -1
+#        self.max_valency = self.sorted_valencies[self.max_val_indexer]
         
         #for grid information only:
         self.p = p #row
@@ -71,7 +74,7 @@ class elimination_ordering_class:
         #for separator display visualization:
         self.Nks = [] #list of separator indexes per round for all rounds
     
-    """per component-operation version, v4"""
+    """per-component operation version, v4"""
     def normalize(self):
         '''Normalize Stage'''
         '''preliminaries:
@@ -125,6 +128,7 @@ class elimination_ordering_class:
                     self.post_placement(i, neighbours, len_neighbours) #post-placement function
                     left_counter -= 1; looked_counter = 0 #decrement left_counter, set looked_counter as 0, each time placement happens to a node
                 elif (valency > np.ceil(self.n/2)) and (valency == np.max(self.valencies)): #Rule 2
+#                elif (valency > np.ceil(self.n/2)) and (valency == self.max_valency): #Rule 2
                     self.vertex_placement(i, 2, valency, neighbours, len_neighbours, "last")
                     self.post_placement(i, neighbours, len_neighbours)
                     left_counter -= 1; looked_counter = 0
@@ -238,17 +242,18 @@ class elimination_ordering_class:
         '''
         
         '''maximum valency tracker:'''
-        #check if any valency == maxval are modified:
+        #check if any valency == maxval are modified, this happens when i is deleted and/or valency(j) is decremented:
+#        nb_val_switch = False #to indicate if neighbours' valencies are modified
+#        nb_vals = self.valencies[neighbours] #neighbours' valencies
+#        if self.valencies[i] == self.max_valency:
+#            self.max_val_indexer -= 1        
+        '''end of maximum valency tracker'''
         
-        #reset maximum valency:
-        if self.maxval_count == 0:
-            self.max_valency = np.max(self.valencies)
-            self.maxval_count = np.count_nonzero(self.valencies == self.max_valency)
-            
         '''post placement:'''
         if mode==0:
             self.sum_valencies -= (self.valencies[i] + len_neighbours) #subtract the sum_valencies by the deleted nodes
             self.valencies[neighbours] -= 1 #update valencies[j] -= 1
+#            nb_val_switch = True #flip on the switch
         elif mode==1:
             self.sum_valencies -= self.valencies[i]
         self.valencies[i] = 0 #set valency[i] = 0
@@ -258,8 +263,18 @@ class elimination_ordering_class:
         self.modified[neighbours] = 1 #set i's neighbours as modified
         
         
-        
-
+        '''maximum valency tracler:'''
+#        if nb_val_switch == True:
+#            for nbval in nb_vals: #O(edge) complexity:
+#                if nbval == self.max_valency:
+#                    self.max_val_indexer -= 1
+                    
+        #reset maximum valency:
+#        if self.max_val_count == 0:
+#            self.max_valency = np.max(self.valencies)
+#            self.max_val_count = np.count_nonzero(self.valencies == self.max_valency)
+#        self.max_valency = self.sorted_valencies[self.max_val_indexer]
+        '''end of max val tracker'''
         
     '''end of placement-routine'''
     
@@ -865,7 +880,7 @@ if __name__ == "__main__":
     #import pprofile
     
     '''elimination order tests'''
-    p=128;q=64  #grid size
+    p=128;q=128  #grid size
     grid = grid_generator(p,q) #generate the grid
     start = time.time() #timer start
     eonx = elimination_ordering_class(grid, visualization=False, r0_verbose=False, p=p, q=q) #initialize object from the elimination_ordering_class
