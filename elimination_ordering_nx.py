@@ -155,33 +155,56 @@ class elimination_ordering_class:
                     if mean_v < n_fourth: #sorter, mean valency vs n_fourth
                         m = mean_v
                     if valency <= m:
-                        #Rule 5:
-                        if clique_check(self.graph, neighbours): #clique check
+                        
+                        # merged clique and subset check:
+                        clique, subset, j_node = check_clique_subset(self.graph, neighbours)
+                        if clique: # Rule 5
                             self.vertex_placement(i, 5, valency, neighbours, len_neighbours, "first", m)
                             self.post_placement(i, neighbours, len_neighbours)
                             left_counter -= 1; looked_counter = 0
-                        #Rule 6:
-                        else:
-                            #merging procedures:
-                            bool_subset, j_node = check_subset(self.graph, neighbours) #subset check
-                            if bool_subset:
-                                self.merge_forest.add_edge(j_node, i) #merge i into j, add directed edge j->i
-                                self.w[j_node] += 1 #increment weight of j
-                                '''visu'''
-                                if self.visu and self.round < 1 and self.verbose:
-                                    self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 6, merged "+str(i)+" to "+str(j_node))
-                                    self.R_switch = True
-                                if self.visu:
-                                    self.R_counters[5] += 1
-                                '''eov'''
-                                self.post_placement(i, neighbours, len_neighbours)
-                                left_counter -= 1; looked_counter = 0
-                            else:
-#                                print("goes into else below subset check")
-                                looked_counter += 1 #if all rules are unapplicable, increment the looked_counter
-                    else: #if it's not into any of the rules
-                        #print("goes into no rule applied")
-                        looked_counter += 1  #no rules applicable, then increment looked_counter      
+                        elif subset: #Rule 6
+                            self.merge_forest.add_edge(j_node, i) #merge i into j, add directed edge j->i
+                            self.w[j_node] += 1 #increment weight of j
+                            '''visu'''
+                            if self.visu and self.round < 1 and self.verbose:
+                                self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 6, merged "+str(i)+" to "+str(j_node))
+                                self.R_switch = True
+                            if self.visu:
+                                self.R_counters[5] += 1
+                            '''eov'''
+                            self.post_placement(i, neighbours, len_neighbours)
+                            left_counter -= 1; looked_counter = 0
+                        # end of merge
+                    else:
+                        looked_counter += 1
+                        
+                        # Rule 5:
+#                        if clique_check(self.graph, neighbours): #clique check
+#                            self.vertex_placement(i, 5, valency, neighbours, len_neighbours, "first", m)
+#                            self.post_placement(i, neighbours, len_neighbours)
+#                            left_counter -= 1; looked_counter = 0
+#                        # Rule 6:
+#                        else:
+#                            #merging procedures:
+#                            bool_subset, j_node = check_subset(self.graph, neighbours) #subset check
+#                            if bool_subset:
+#                                self.merge_forest.add_edge(j_node, i) #merge i into j, add directed edge j->i
+#                                self.w[j_node] += 1 #increment weight of j
+#                                '''visu'''
+#                                if self.visu and self.round < 1 and self.verbose:
+#                                    self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 6, merged "+str(i)+" to "+str(j_node))
+#                                    self.R_switch = True
+#                                if self.visu:
+#                                    self.R_counters[5] += 1
+#                                '''eov'''
+#                                self.post_placement(i, neighbours, len_neighbours)
+#                                left_counter -= 1; looked_counter = 0
+#                            else:
+##                                print("goes into else below subset check")
+#                                looked_counter += 1 #if all rules are unapplicable, increment the looked_counter
+#                    else: #if it's not into any of the rules
+#                        #print("goes into no rule applied")
+#                        looked_counter += 1  #no rules applicable, then increment looked_counter      
                 self.modified[i] = 0 #set node i as unmodified
             
 #            self.comp_stack[-1][:] = [elem for elem in self.comp_stack[-1] if self.deleted[elem] == False] #eliminate deleted elements from the stack's top
@@ -913,7 +936,7 @@ if __name__ == "__main__":
     grid = grid_generator(p,q) #regenerate grid
     v = eliminate(grid, eonx.e) #eliminate the grid using elimination ordering from eli
     print("fills = ", v, "; len order == total nodes: ",len(eonx.e) == p*q)
-    generate_separator_display(p, q, eonx.Nks)
+#    generate_separator_display(p, q, eonx.Nks)
     
     
     '''
