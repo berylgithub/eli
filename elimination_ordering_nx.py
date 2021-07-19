@@ -692,6 +692,27 @@ def check_subset(graph, gamma_i):
         bool_subset = True
     return bool_subset, j_get
 
+#merge clique check and subset check
+def check_clique_subset(graph, gamma_i):
+    '''executes both clique and neighbourhood-subset checking'''
+    bool_subset = False
+    bool_clique = True
+    j_get = None
+    H = gamma_i.copy()
+    for k in gamma_i:
+        for j in gamma_i:
+            if k != j:
+                #check for clique:
+                if not graph.has_edge(k, j):
+                    bool_clique = False
+                #check for subset:
+                if not graph.has_edge(k, j) and j in H:
+                    H.remove(j)
+    if H:
+        j_get = H[0]
+        bool_subset = True
+    return bool_clique, bool_subset, j_get
+
 '''============== Utilities =============='''
 def eliminate(graph, elimination_order, join_tree=False):
     '''elimination function: eliminates the vertices based on the order resulted from elimination ordering algorithms
@@ -922,18 +943,10 @@ if __name__ == "__main__":
     '''
     Other tests
     '''
-#    def looptest(n=np.power(2, 26)):
-#        a = 0
-#        L = list(range(n))
-#        for i in L:
-#            a += i
-#            a += i
-##        for i in L:
-##            a += i
-##        for i in L:
-##            a += i
-#            
-#    cProfile.run('looptest()', sort='cumtime')
-    
+#    G = nx.Graph([(0,1),(0,2),(0,3),(1,3),(2,3)])
+##    G = grid_generator(2,2)
+#    nbs = list(G[0])
+#    print(nbs)
+#    print(check_clique_subset(G, nbs))    
             
         
