@@ -927,19 +927,19 @@ if __name__ == "__main__":
     #import pprofile
     
     '''elimination order tests'''
-    p=128;q=128  #grid size
-    grid = grid_generator(p,q) #generate the grid
-    start = time.time() #timer start
-    eonx = elimination_ordering_class(grid, visualization=False, r0_verbose=False, p=p, q=q) #initialize object from the elimination_ordering_class
-#    print(len(eonx.comp_stack[0]))
-#    eonx.elimination_ordering()
-    print("actual running time (without profiler overhead) = ",time.time()-start)
-    cProfile.run('eonx.elimination_ordering()', sort='cumtime')
-    '''to check the statistic of fills:'''
-    grid = grid_generator(p,q) #regenerate grid
-    v = eliminate(grid, eonx.e) #eliminate the grid using elimination ordering from eli
-    print("fills = ", v, "; len order == total nodes: ",len(eonx.e) == p*q)
-#    generate_separator_display(p, q, eonx.Nks)
+#    p=128;q=128  #grid size
+#    grid = grid_generator(p,q) #generate the grid
+#    start = time.time() #timer start
+#    eonx = elimination_ordering_class(grid, visualization=False, r0_verbose=False, p=p, q=q) #initialize object from the elimination_ordering_class
+##    print(len(eonx.comp_stack[0]))
+##    eonx.elimination_ordering()
+#    print("actual running time (without profiler overhead) = ",time.time()-start)
+#    cProfile.run('eonx.elimination_ordering()', sort='cumtime')
+#    '''to check the statistic of fills:'''
+#    grid = grid_generator(p,q) #regenerate grid
+#    v = eliminate(grid, eonx.e) #eliminate the grid using elimination ordering from eli
+#    print("fills = ", v, "; len order == total nodes: ",len(eonx.e) == p*q)
+##    generate_separator_display(p, q, eonx.Nks)
     
     
     '''
@@ -970,9 +970,10 @@ if __name__ == "__main__":
     Other tests
     '''
 #    G = nx.Graph([(0,1),(0,2),(0,3),(1,3),(2,3)])
-##    G = grid_generator(2,2)
+    G = grid_generator(32,32)
 #    nbs = list(G[0])
 #    print(nbs)
 #    print(check_clique_subset(G, nbs))    
-            
+#    d = nx.single_source_shortest_path_length(G, 0)
+    cProfile.run('nx.single_source_shortest_path_length(G, 0)', sort='cumtime')
         
