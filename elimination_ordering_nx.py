@@ -205,7 +205,8 @@ class elimination_ordering_class:
 #                    else: #if it's not into any of the rules
 #                        #print("goes into no rule applied")
 #                        looked_counter += 1  #no rules applicable, then increment looked_counter      
-                self.modified[i] = 0 #set node i as unmodified
+                        
+                    self.modified[i] = 0 #set node i as unmodified (R7)
             
 #            self.comp_stack[-1][:] = [elem for elem in self.comp_stack[-1] if self.deleted[elem] == False] #eliminate deleted elements from the stack's top
             
@@ -735,6 +736,8 @@ def check_clique_subset(graph, gamma_i):
         j_get = H[0]
         bool_subset = True
     return bool_clique, bool_subset, j_get
+
+
 
 '''============== Utilities =============='''
 def eliminate(graph, elimination_order, join_tree=False):
