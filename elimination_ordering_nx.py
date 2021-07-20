@@ -29,12 +29,17 @@ class elimination_ordering_class:
         '''
         self.graph = graph #the graph (networkx data structure)
         self.n_init = self.graph.number_of_nodes() #initial graph size, usable for static vectors
+        
         '''for v4 of eli (component processing)'''
         self.n = self.n_init #dynamic graph size, in v4's case it is equal to the size of top(comp_stack) (or in this case, self.comp_stack[-1])  
-        self.comp_stack = [list(self.graph.nodes)] #first, fill with all of the nodes, each element of the stack is a list of connected components
-        self.stack_tracker = ["main"] #for debug purpose
+        self.comp_stack = [list(self.graph.nodes)] #each element of the stack is a list of connected components
+#        self.comp_stack = []
+#        self.main_comp = [list(self.graph.nodes)] #the main component tracker
+#        self.stack_switch = False #flip the switch when the main component is empty
+        self.stack_tracker = ["main"] #for debugging purpose
 #        self.norm_deleted = [] #list of deleted nodes in normalization, to help the post-separation stage, this will be reset when normalize stage starts.
         '''end of v4'''
+        
         self.e = np.array([-1]*self.n) #for now the placeholder is an array of -1
         self.w = np.array([1]*self.n) #weight vector for merge forest
         self.merge_forest = nx.Graph() #merge forest for merging procedures
@@ -45,11 +50,10 @@ class elimination_ordering_class:
         '''calculate the valencies early, so that within the stages there will be no valencies re-calculation:'''
         self.valencies = np.array([len(self.graph[i]) for i in self.graph.nodes]) #valencies, valency[i] will be subtracted for each operation in a node
         self.sum_valencies = np.sum(self.valencies) #for calculating the mean_valency, the sum should be subtracted for each operation in a node
+        # max valency trackers:
 #        self.max_valency = np.max(self.valencies) #precalculate the max valency, update during elimination
 #        self.max_val_count = np.count_nonzero(self.valencies == self.max_valency) #counter of max_valency value
-#        self.sorted_valencies = np.sort(self.valencies) #for max_valency tracking
-#        self.max_val_indexer = -1
-#        self.max_valency = self.sorted_valencies[self.max_val_indexer]
+
         
         #for grid information only:
         self.p = p #row
@@ -104,6 +108,7 @@ class elimination_ordering_class:
                 self.R_strings.append("++ i, n, valency, m ++")
             '''eov'''
             for i in self.comp_stack[-1]: #loop all vertex i within the top(stack)
+#            for i in self.main_comp:
 #            for i in rand_top: #loop all vertex i within the top(stack)
                 if looked_counter >= left_counter: #stopping condition checker
 #                    self.comp_stack[-1][:] = [elem for elem in self.comp_stack[-1] if self.deleted[elem] == False] #eliminate deleted elements from the stack's top
@@ -179,7 +184,7 @@ class elimination_ordering_class:
                         looked_counter += 1
                         
                         # Rule 5:
-#                        if clique_check(self.graph, neighbours): #clique check
+#                        if check_clique(self.graph, neighbours): #clique check
 #                            self.vertex_placement(i, 5, valency, neighbours, len_neighbours, "first", m)
 #                            self.post_placement(i, neighbours, len_neighbours)
 #                            left_counter -= 1; looked_counter = 0
@@ -270,7 +275,7 @@ class elimination_ordering_class:
 #        nb_val_switch = False #to indicate if neighbours' valencies are modified
 #        nb_vals = self.valencies[neighbours] #neighbours' valencies
 #        if self.valencies[i] == self.max_valency:
-#            self.max_val_indexer -= 1        
+#            self.max_val_count -= 1        
         '''end of maximum valency tracker'''
         
         '''post placement:'''
@@ -291,13 +296,12 @@ class elimination_ordering_class:
 #        if nb_val_switch == True:
 #            for nbval in nb_vals: #O(edge) complexity:
 #                if nbval == self.max_valency:
-#                    self.max_val_indexer -= 1
+#                    self.max_val_count -= 1
                     
-        #reset maximum valency:
+        # reset maximum valency:
 #        if self.max_val_count == 0:
 #            self.max_valency = np.max(self.valencies)
 #            self.max_val_count = np.count_nonzero(self.valencies == self.max_valency)
-#        self.max_valency = self.sorted_valencies[self.max_val_indexer]
         '''end of max val tracker'''
         
     '''end of placement-routine'''
@@ -316,18 +320,20 @@ class elimination_ordering_class:
         '''RCM part'''
         #1, d=0, pick vertex e with max valency:
         d_prime = 0
+        
         if len(self.comp_stack) == 1: #if there is only one stack element left, which may contain multiple subgraphs
             e_sep = np.argmax(self.valencies) #get the node with max valency immediately since the valencies array is contiguous
         else: #if there are more than one connected components left, need to slice them
-#            mask = np.ma.array([1]*len(self.valencies))
-#            mask[self.comp_stack[-1]] = 0
-#            mv = np.ma.masked_array(self.valencies, mask)
-#            e_sep = np.argmax(mv)
-#            e_sep, _ = get_max_valency(self.comp_stack[-1], self.valencies)
             e_sep = np.max(self.valencies[self.comp_stack[-1]]) #get the sliced-max valency
             e_sep = np.where(self.valencies == e_sep)[0][0] #identify the index which is the node with max valency
+
+#            agmax = np.argmax(self.valencies[self.comp_stack[-1]])
+#            e_sep = self.comp_stack[-1][agmax]
+        
         if self.visu and self.round < 1 and self.verbose:
             print("step 1, e, valency[e]:", e_sep, self.valencies[e_sep])
+        
+        print(self.valencies[78], self.valencies[261])
         
         #2, need to find a set of M with max distansce from e, which requires BFS or djikstra:
         distances = nx.single_source_shortest_path_length(self.graph, e_sep) #dict of {node: distance}, it is unsorted
@@ -558,10 +564,6 @@ class elimination_ordering_class:
             if self.graph.number_of_nodes() == 0: #if the graph is empty, break
                 break
             
-#            print("stack elem before norm = ",self.stack_tracker, self.comp_stack[-1], self.deleted[self.comp_stack[-1]])
-#            print("graph left = ",len(self.graph.nodes), list(self.graph.nodes))
-
-#            self.norm_deleted = [] #reset deleted list
             self.normalize() #do normalize stage
             if self.graph.number_of_nodes() == 0:
                 break
@@ -602,9 +604,7 @@ class elimination_ordering_class:
                     else:
                         print("after separate stage: ",stack_info, ", mean component size = ",avg)
             
-            
-            
-            # quick & dirty way of removing a stack element which contains deleted vertices:
+            # quick way of removing a stack element which contains deleted vertices:
             removal_switch = False
             while np.all(self.deleted[self.comp_stack[-1]]) == True:
                 self.comp_stack.pop()
@@ -686,7 +686,7 @@ def get_ordered_list_merged_vertex(forest, placed_vertex):
     return list(reversed(ordered_list))
 
 #for checking clique:
-def clique_check(graph, gamma_i):
+def check_clique(graph, gamma_i):
     clique = True
     for k in gamma_i:
         for j in gamma_i:
@@ -927,19 +927,19 @@ if __name__ == "__main__":
     #import pprofile
     
     '''elimination order tests'''
-#    p=128;q=128  #grid size
-#    grid = grid_generator(p,q) #generate the grid
-#    start = time.time() #timer start
-#    eonx = elimination_ordering_class(grid, visualization=False, r0_verbose=False, p=p, q=q) #initialize object from the elimination_ordering_class
-##    print(len(eonx.comp_stack[0]))
-##    eonx.elimination_ordering()
-#    print("actual running time (without profiler overhead) = ",time.time()-start)
+    p=20;q=20  #grid size
+    grid = grid_generator(p,q) #generate the grid
+    start = time.time() #timer start
+    eonx = elimination_ordering_class(grid, visualization=False, r0_verbose=False, p=p, q=q) #initialize object from the elimination_ordering_class
+#    print(len(eonx.comp_stack[0]))
+    eonx.elimination_ordering()
+    print("actual running time (without profiler overhead) = ",time.time()-start)
 #    cProfile.run('eonx.elimination_ordering()', sort='cumtime')
-#    '''to check the statistic of fills:'''
-#    grid = grid_generator(p,q) #regenerate grid
-#    v = eliminate(grid, eonx.e) #eliminate the grid using elimination ordering from eli
-#    print("fills = ", v, "; len order == total nodes: ",len(eonx.e) == p*q)
-##    generate_separator_display(p, q, eonx.Nks)
+    '''to check the statistic of fills:'''
+    grid = grid_generator(p,q) #regenerate grid
+    v = eliminate(grid, eonx.e) #eliminate the grid using elimination ordering from eli
+    print("fills = ", v, "; len order == total nodes: ",len(eonx.e) == p*q)
+#    generate_separator_display(p, q, eonx.Nks)
     
     
     '''
@@ -970,10 +970,10 @@ if __name__ == "__main__":
     Other tests
     '''
 #    G = nx.Graph([(0,1),(0,2),(0,3),(1,3),(2,3)])
-    G = grid_generator(32,32)
+#    G = grid_generator(32,32)
 #    nbs = list(G[0])
 #    print(nbs)
 #    print(check_clique_subset(G, nbs))    
 #    d = nx.single_source_shortest_path_length(G, 0)
-    cProfile.run('nx.single_source_shortest_path_length(G, 0)', sort='cumtime')
+#    cProfile.run('nx.single_source_shortest_path_length(G, 0)', sort='cumtime')
         
