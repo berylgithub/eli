@@ -321,19 +321,20 @@ class elimination_ordering_class:
         #1, d=0, pick vertex e with max valency:
         d_prime = 0
         
-        if len(self.comp_stack) == 1: #if there is only one stack element left, which may contain multiple subgraphs
-            e_sep = np.argmax(self.valencies) #get the node with max valency immediately since the valencies array is contiguous
-        else: #if there are more than one connected components left, need to slice them
-            e_sep = np.max(self.valencies[self.comp_stack[-1]]) #get the sliced-max valency
-            e_sep = np.where(self.valencies == e_sep)[0][0] #identify the index which is the node with max valency
+#        if len(self.comp_stack) == 1: #if there is only one stack element left, which may contain multiple subgraphs
+#            e_sep = np.argmax(self.valencies) #get the node with max valency immediately since the valencies array is contiguous
+#        else: #if there are more than one connected components left, need to slice them
+        
+#        e_sep = np.max(self.valencies[self.comp_stack[-1]]) #get the sliced-max valency
+#        e_sep = np.where(self.valencies == e_sep)[0][0] #identify the index which is the node with max valency
 
-#            agmax = np.argmax(self.valencies[self.comp_stack[-1]])
-#            e_sep = self.comp_stack[-1][agmax]
+        agmax = np.argmax(self.valencies[self.comp_stack[-1]])
+        e_sep = self.comp_stack[-1][agmax]
         
         if self.visu and self.round < 1 and self.verbose:
             print("step 1, e, valency[e]:", e_sep, self.valencies[e_sep])
         
-        print(self.valencies[78], self.valencies[261])
+#        print(e_sep, self.valencies[78], self.valencies[261], e_sep in self.comp_stack[-1])
         
         #2, need to find a set of M with max distansce from e, which requires BFS or djikstra:
         distances = nx.single_source_shortest_path_length(self.graph, e_sep) #dict of {node: distance}, it is unsorted
@@ -365,6 +366,8 @@ class elimination_ordering_class:
             if self.visu and self.round < 1 and self.verbose:
                 print("step 2, d, M, s:",d,M,s)        
         '''end of RCM'''
+        
+#        print(e_sep, self.valencies[78], self.valencies[261], e_sep in self.comp_stack[-1])
         
         conn_comps = distances #list o connected components from e
         d = int(d)
@@ -927,7 +930,7 @@ if __name__ == "__main__":
     #import pprofile
     
     '''elimination order tests'''
-    p=20;q=20  #grid size
+    p=32;q=32  #grid size
     grid = grid_generator(p,q) #generate the grid
     start = time.time() #timer start
     eonx = elimination_ordering_class(grid, visualization=False, r0_verbose=False, p=p, q=q) #initialize object from the elimination_ordering_class
