@@ -102,4 +102,6 @@ Reset modified tag after separation vs modify neighborhood tags during separatio
 <li> more efficient max valency computation. -- 2 versions tested:{using counter and reset; using pre-sorted array and counter}, direct max is faster, perhaps numpy's implementation make use of multiple cores (?) even when not explicitly asked.
 <li> new stack mechanism: push only tails.
 <li> merge subset and clique checking. -- completed, in grids case, no performance difference, due to no hit in R5 (only hits on R6/worst case scenario).
-<li> check dijkstra's algorithm complexity if O(n^2) then replace with more efficient algorithm. -- turns out networkx' implementation uses BFS, which is O(n+e); a special case of dijkstra for unweighted graphs.
+<li> check dijkstra's algorithm complexity if O(n^2) then replace with more efficient algorithm. -- turns out networkx' implementation uses BFS, which is O(n+e); a special case of dijkstra for unweighted graphs.<br/>
+============<br/>
+<li> turns out the i_{max} in the separator in the RCM block is incorrect, the code looks for maximum valency from the stack's top, but it goes outside the stack's list when determining which i belongs to the max_val, this causes multiple nodes belong to multiple stack elements; however this gives better fills and negligible performance difference compared to the corrected one (v4.3), also possibly the cause of better separators on the lower half of the grid (?).
