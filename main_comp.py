@@ -180,15 +180,15 @@ def computation_independent(n=10,filename="grid_p=q_algo4.3_25062021_k10.p"):
     #mat_types = [] #bipartite or not, 1/0
     times = []
     fills_eli = []
-    fills_metis = []
+#    fills_metis = []
     fills_eli_ratio = []
-    fills_metis_ratio = []
+#    fills_metis_ratio = []
     eli_metis_ratios = []
     es = [] #list of e from eli
     #jointree data:
     max_C_eli = []
     max_K_eli = []
-    max_C_metis = []
+#    max_C_metis = []
     max_K_metis = []
     #grids specific data:
     ps = []; qs = []
@@ -208,7 +208,7 @@ def computation_independent(n=10,filename="grid_p=q_algo4.3_25062021_k10.p"):
         #elimination ordering:
         start = time.time()
         EO = eo.elimination_ordering_class(grid, visualization=False, p=p, q=q) #must be on global scope
-        EO.elimination_ordering_1()
+        EO.elimination_ordering()
         end = time.time()
         es.append(EO.e)
         elapsed = end-start
@@ -254,6 +254,6 @@ def computation_independent(n=10,filename="grid_p=q_algo4.3_25062021_k10.p"):
 if __name__ == '__main__':
     #generate_iperm()
     #computation()
-    computation_independent(10, "grid_p=q_algo4.3_25062021_k10.p")
+    computation_independent(8, "grid_p=q_algo4.5_26072021_k8.p")
     #visu()
     #testnewtoken2
