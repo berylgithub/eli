@@ -38,6 +38,8 @@ class elimination_ordering_class:
 #        self.stack_switch = False #flip the switch when the main component is empty
         self.stack_tracker = ["main"] #for debugging purpose
 #        self.norm_deleted = [] #list of deleted nodes in normalization, to help the post-separation stage, this will be reset when normalize stage starts.
+        
+        self.main_comp = [list(self.graph.nodes)] # the main 
         '''end of v4'''
         
         self.e = np.array([-1]*self.n) #for now the placeholder is an array of -1
@@ -50,6 +52,7 @@ class elimination_ordering_class:
         '''calculate the valencies early, so that within the stages there will be no valencies re-calculation:'''
         self.valencies = np.array([len(self.graph[i]) for i in self.graph.nodes]) #valencies, valency[i] will be subtracted for each operation in a node
         self.sum_valencies = np.sum(self.valencies) #for calculating the mean_valency, the sum should be subtracted for each operation in a node
+        
         # max valency trackers:
 #        self.max_valency = np.max(self.valencies) #precalculate the max valency, update during elimination
 #        self.max_val_count = np.count_nonzero(self.valencies == self.max_valency) #counter of max_valency value
@@ -325,11 +328,20 @@ class elimination_ordering_class:
 #            e_sep = np.argmax(self.valencies) #get the node with max valency immediately since the valencies array is contiguous
 #        else: #if there are more than one connected components left, need to slice them
         
+        '''v4.3 init separator, the "incorrect" separator but gives better fills result'''
 #        e_sep = np.max(self.valencies[self.comp_stack[-1]]) #get the sliced-max valency
 #        e_sep = np.where(self.valencies == e_sep)[0][0] #identify the index which is the node with max valency
-
-        agmax = np.argmax(self.valencies[self.comp_stack[-1]])
-        e_sep = self.comp_stack[-1][agmax]
+        '''end of v4.3 init separator'''
+        
+        '''v4.4 init separator'''
+#        agmax = np.argmax(self.valencies[self.comp_stack[-1]])
+#        e_sep = self.comp_stack[-1][agmax]
+        '''end of v4.4 init separator'''
+        
+        '''v4.5 init separator'''
+        e_sep = np.argmax(self.valencies)
+        '''end of v4.5 init separator'''
+        
         
         if self.visu and self.round < 1 and self.verbose:
             print("step 1, e, valency[e]:", e_sep, self.valencies[e_sep])
@@ -930,7 +942,7 @@ if __name__ == "__main__":
     #import pprofile
     
     '''elimination order tests'''
-    p=32;q=32  #grid size
+    p=64;q=64  #grid size
     grid = grid_generator(p,q) #generate the grid
     start = time.time() #timer start
     eonx = elimination_ordering_class(grid, visualization=False, r0_verbose=False, p=p, q=q) #initialize object from the elimination_ordering_class
