@@ -32,15 +32,18 @@ class elimination_ordering_class:
         
         '''for v4 of eli (component processing)'''
         self.n = self.n_init #dynamic graph size, in v4's case it is equal to the size of top(comp_stack) (or in this case, self.comp_stack[-1])  
-        self.comp_stack = [list(self.graph.nodes)] #each element of the stack is a list of connected components
+        self.comp_stack = [] #each element of the stack is a list of connected components
 #        self.comp_stack = []
 #        self.main_comp = [list(self.graph.nodes)] #the main component tracker
 #        self.stack_switch = False #flip the switch when the main component is empty
         self.stack_tracker = ["main"] #for debugging purpose
 #        self.norm_deleted = [] #list of deleted nodes in normalization, to help the post-separation stage, this will be reset when normalize stage starts.
         
-        self.main_comp = [list(self.graph.nodes)] # the main 
         '''end of v4'''
+        
+        # v4.4.1, tail only stack:
+        self.main_comp = [list(self.graph.nodes)] # the main 
+
         
         self.e = np.array([-1]*self.n) #for now the placeholder is an array of -1
         self.w = np.array([1]*self.n) #weight vector for merge forest
@@ -382,6 +385,8 @@ class elimination_ordering_class:
 #        print(e_sep, self.valencies[78], self.valencies[261], e_sep in self.comp_stack[-1])
         
         conn_comps = distances #list o connected components from e
+        gamma_cc = set(conn_comps)
+        print(gamma_cc)
         d = int(d)
         
         #4, get the N_k, n_k from e, 0<=k<=d, d=max distance, k \in Z:
@@ -942,7 +947,7 @@ if __name__ == "__main__":
     #import pprofile
     
     '''elimination order tests'''
-    p=64;q=64  #grid size
+    p=8;q=8  #grid size
     grid = grid_generator(p,q) #generate the grid
     start = time.time() #timer start
     eonx = elimination_ordering_class(grid, visualization=False, r0_verbose=False, p=p, q=q) #initialize object from the elimination_ordering_class
