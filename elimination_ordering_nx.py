@@ -78,6 +78,8 @@ class elimination_ordering_class:
             #specialized for separate stage visualization:
             self.separate_placed_rounds = [] #list of rounds which indicates when the nodes are elminated in separate-stage
             self.len_conn = [] #list of length of connected components during separate stage
+            self.global_counter = 0 #counts total loops
+            self.stat_m = [] #contains the statistics of m
         #for separator display visualization:
         self.Nks = [] #list of separator indexes per round for all rounds
     
@@ -105,11 +107,11 @@ class elimination_ordering_class:
 #        rand_top = np.random.permutation(self.comp_stack[-1])
         '''end of randomization'''
         while looked_counter < left_counter:  #if the total of looked counter >= left counter, then stop the while loop
-            '''visu'''
+
             if self.visu and self.round < 1 and self.verbose:
                 self.R_strings.append("++ new normalization cycle ++")
                 self.R_strings.append("++ i, n, valency, m ++")
-            '''eov'''
+
             for i in self.comp_stack[-1]: #loop all vertex i within the top(stack)
 #            for i in self.main_comp:
 #            for i in rand_top: #loop all vertex i within the top(stack)
@@ -127,6 +129,10 @@ class elimination_ordering_class:
                 valency = self.valencies[i] #get vertex's valency
                 m = None #set empty m
                 neighbours = list(self.graph[i]) #get the neighbours of node i
+                
+                if self.visu:
+                    self.global_counter += len(neighbours)
+                
                 len_neighbours = valency #set the length of node i's neighbourhood with the valency value
                 
                 #check all of the conditions based on the valency, n, and m:
@@ -137,6 +143,9 @@ class elimination_ordering_class:
                     left_counter -= 1; looked_counter = 0 #decrement left_counter, set looked_counter as 0, each time placement happens to a node
                 elif (valency > np.ceil(self.n/2)) and (valency == np.max(self.valencies)): #Rule 2
 #                elif (valency > np.ceil(self.n/2)) and (valency == self.max_valency): #Rule 2
+                    if self.visu:
+                        self.global_counter += len(self.valencies)
+                        
                     self.vertex_placement(i, 2, valency, neighbours, len_neighbours, "last")
                     self.post_placement(i, neighbours, len_neighbours)
                     left_counter -= 1; looked_counter = 0
@@ -162,6 +171,10 @@ class elimination_ordering_class:
                     m = n_fourth
                     if mean_v < n_fourth: #sorter, mean valency vs n_fourth
                         m = mean_v
+                        
+                    if self.visu:
+                        self.stat_m.append(m)
+                    
                     if valency <= m:
                         
                         # merged clique and subset check:
@@ -173,13 +186,13 @@ class elimination_ordering_class:
                         elif subset: #Rule 6
                             self.merge_forest.add_edge(j_node, i) #merge i into j, add directed edge j->i
                             self.w[j_node] += 1 #increment weight of j
-                            '''visu'''
+                            
                             if self.visu and self.round < 1 and self.verbose:
                                 self.R_strings.append(str(i)+" "+ str(self.n)+" "+ str(valency)+" "+ str(m)+ "||rule 6, merged "+str(i)+" to "+str(j_node))
                                 self.R_switch = True
                             if self.visu:
                                 self.R_counters[5] += 1
-                            '''eov'''
+                                
                             self.post_placement(i, neighbours, len_neighbours)
                             left_counter -= 1; looked_counter = 0
                         # end of merge
@@ -214,7 +227,7 @@ class elimination_ordering_class:
 #                        #print("goes into no rule applied")
 #                        looked_counter += 1  #no rules applicable, then increment looked_counter      
                         
-                    self.modified[i] = 0 #set node i as unmodified (R7)
+                self.modified[i] = 0 #set node i as unmodified (R7)
             
 #            self.comp_stack[-1][:] = [elem for elem in self.comp_stack[-1] if self.deleted[elem] == False] #eliminate deleted elements from the stack's top
             
@@ -238,6 +251,7 @@ class elimination_ordering_class:
                 self.e[self.first_zero : self.first_zero + len_ord_list] = ordered_list #place first on elimination the list obtained from tracing back the merge forest from i
                 if self.visu:
                     self.rounds_e[ordered_list] = self.round
+                    self.global_counter += len_ord_list
                 self.first_zero += len_ord_list #increment the first zero by the size of the ordered list
             else:
                 #add to the first zero pos and increment the indexer:
@@ -253,6 +267,7 @@ class elimination_ordering_class:
                 self.e[len_e + self.last_zero - len_ord_list + 1 : len_e + self.last_zero + 1] = ordered_list #place last on elimination the list obtained from tracing back the merge forest from i
                 if self.visu:
                     self.rounds_e[ordered_list] = self.round
+                    self.global_counter += len_ord_list
                 self.last_zero -= len_ord_list #decrement last zero by the size of the ordered list 
             else:
                 #add to the last zero and decrement the indexer:
@@ -294,6 +309,8 @@ class elimination_ordering_class:
         self.deleted[i] = True #set i as deleted
         self.modified[neighbours] = 1 #set i's neighbours as modified
         
+        if self.visu:
+            self.global_counter += 1
         
         '''maximum valency tracler:'''
 #        if nb_val_switch == True:
@@ -338,9 +355,13 @@ class elimination_ordering_class:
 #        e_sep = self.comp_stack[-1][agmax]
         '''end of v4.4 init separator'''
         
-        '''v4.5 init separator'''
+        '''v4.3.1 init separator'''
         e_sep = np.argmax(self.valencies)
-        '''end of v4.5 init separator'''
+        
+        if self.visu:
+            self.global_counter += len(self.valencies) #O(slicing) + O(argmax)
+        '''end of v4.3.1 init separator'''
+        
         
         
         if self.visu and self.round < 1 and self.verbose:
@@ -350,6 +371,10 @@ class elimination_ordering_class:
         
         #2, need to find a set of M with max distansce from e, which requires BFS or djikstra:
         distances = nx.single_source_shortest_path_length(self.graph, e_sep) #dict of {node: distance}, it is unsorted
+        
+        if self.visu:
+            self.global_counter += len(distances)
+            
         s = len(distances) #total connected components
         d = np.max(list(distances.values())) #max distance from e
         M = [vert for vert in distances if distances[vert] == d]  #set of vertices with max distance from e
@@ -375,6 +400,9 @@ class elimination_ordering_class:
             M = [vert for vert in distances if distances[vert] == d]  #set of vertices with max distance from e
             loopcount+=1 #increment RCM loopcount
             
+            if self.visu:
+                self.global_counter += len(distances)*3 + len(M)
+            
             if self.visu and self.round < 1 and self.verbose:
                 print("step 2, d, M, s:",d,M,s)        
         '''end of RCM'''
@@ -391,11 +419,19 @@ class elimination_ordering_class:
         for i in range(0, d+1):
             N.append([k for k,v in distances.items() if v==i])
             n[i] = len(N[i])
+            
+            if self.visu:
+                self.global_counter += len(distances)
+            
         if self.visu and self.round < 1 and self.verbose:
             print("step 4, n_k:",n)
         
         #5, Compute the partial sums v_k= sum_{i<=k} n_i (numpy.cumsum):
         v = np.cumsum(n)
+        
+        if self.visu:
+            self.global_counter += len(n)
+        
         if self.visu and self.round < 1 and self.verbose:
             print("step 5, v:",v)
         
@@ -409,10 +445,18 @@ class elimination_ordering_class:
             c_ks[k] = c_k #for another n_k possibilites
             if c_k > max_val:
                 max_val = c_k; max_idx = k;
+                
+                if self.visu:
+                    self.global_counter += 1
+                
         #look for smallest n_k:
         for i in range(c_ks.shape[0]):
             if c_ks[i] == max_val:
                 possible_ks.append(i)
+            
+            if self.visu:
+                self.global_counter += 1
+            
         k = None
         if len(possible_ks) <= 1:
             k = max_idx
@@ -426,8 +470,16 @@ class elimination_ordering_class:
         for node_i in N[k]:
             out_w_nodes = np.intersect1d(self.graph[node_i], N[k+1])
             b[node_i] = np.sum(self.w[out_w_nodes]) #w = weights from normalization, need to know which value belongs to which
+            
+            if self.visu:
+                self.global_counter += 1
+            
         sorted_b_Nk_idx = np.argsort(b[N[k]])
         sorted_Nk = [N[k][i] for i in sorted_b_Nk_idx]
+        
+        if self.visu:
+            self.global_counter += len(N[k])*2
+        
         if self.visu and self.round < 1 and self.verbose:
             print("step 8:")
             print("all b_i :",b)
@@ -445,6 +497,7 @@ class elimination_ordering_class:
                         self.place_loc[ordered_list] = -1
                         self.rounds_e[ordered_list] = self.round
                         separate_placed_round += len_ord_list
+                        self.global_counter += len_ord_list
                     if self.visu and self.round < 1 and self.verbose:
                         print("weight[i] > 1, place merge-tree alongside",i,",placed list: ",ordered_list)
                 else: #if the weight of node is <= 1
@@ -549,6 +602,10 @@ class elimination_ordering_class:
         '''end of new stack mechanism'''
 #        residual = set(self.graph.nodes) - set(conn_comps) #leftover after normalization, in grid's case, this is {}
         residual = prev_top - set(conn_comps)#leftover after normalization, in grid's case, this is {}
+        
+        if self.visu:
+            self.global_counter += len(prev_top) + len(main_c)*2 + len(conn_comps) + len(N[k])
+            self.global_counter += len(conn_comps)*(len(main_c)+len(N[k])) + len(prev_top)*len(conn_comps)
         
 #        print("\nmain_c",sorted(main_c))
 #        print("second",sorted(complement))
@@ -664,7 +721,19 @@ class elimination_ordering_class:
                 print("Total number of vertices placed in Separate stage per round:")
                 for i,r in enumerate(self.separate_placed_rounds):
                     print("Round",i+1,":",r,"of",self.len_conn[i],"vertices")
-            
+            print("Total number of hits in all loops (one loop counts as 1 (includes any O(constant) operations)) = ", self.global_counter)
+            if self.stat_m:
+                self.stat_m = sorted(self.stat_m)
+                avg = round(np.average(self.stat_m))
+                if len(self.stat_m) > 7:
+                    string0 = string1 = ""
+                    for i in range(3):
+                        string0 += str("{:.2f}".format(self.stat_m[i]))+","
+                    for i in range(len(self.stat_m)-3, len(self.stat_m)):
+                        string1 += ","+str("{:.2f}".format(self.stat_m[i]))
+                    print("values of m: ["+string0,"...("+str(avg)+")...", string1+"]")
+                else:
+                    print("values of m: ",self.stat_m, ", mean m value = ",avg)
 '''================== END OF ELIMINATION ORDERING CLASS =================='''
 
 '''Separate-helper functions:'''
