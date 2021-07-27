@@ -34,7 +34,6 @@ class elimination_ordering_class:
         self.n = self.n_init #dynamic graph size, in v4's case it is equal to the size of top(comp_stack) (or in this case, self.comp_stack[-1])  
         self.comp_stack = [] #each element of the stack is a list of connected components
 #        self.comp_stack = []
-#        self.main_comp = [list(self.graph.nodes)] #the main component tracker
 #        self.stack_switch = False #flip the switch when the main component is empty
         self.stack_tracker = ["main"] #for debugging purpose
 #        self.norm_deleted = [] #list of deleted nodes in normalization, to help the post-separation stage, this will be reset when normalize stage starts.
@@ -42,7 +41,7 @@ class elimination_ordering_class:
         '''end of v4'''
         
         # v4.4.1, tail only stack:
-        self.main_comp = [list(self.graph.nodes)] # the main 
+        self.main_comp = list(self.graph.nodes) # the main 
 
         
         self.e = np.array([-1]*self.n) #for now the placeholder is an array of -1
@@ -113,8 +112,8 @@ class elimination_ordering_class:
                 self.R_strings.append("++ new normalization cycle ++")
                 self.R_strings.append("++ i, n, valency, m ++")
             '''eov'''
-            for i in self.comp_stack[-1]: #loop all vertex i within the top(stack)
-#            for i in self.main_comp:
+#            for i in self.comp_stack[-1]: #loop all vertex i within the top(stack)
+            for i in self.main_comp: # v4.4.1
 #            for i in rand_top: #loop all vertex i within the top(stack)
                 if looked_counter >= left_counter: #stopping condition checker
 #                    self.comp_stack[-1][:] = [elem for elem in self.comp_stack[-1] if self.deleted[elem] == False] #eliminate deleted elements from the stack's top
@@ -339,10 +338,13 @@ class elimination_ordering_class:
         '''v4.4 init separator'''
 #        agmax = np.argmax(self.valencies[self.comp_stack[-1]])
 #        e_sep = self.comp_stack[-1][agmax]
+        # 4.4.1:
+        agmax = np.argmax(self.valencies[self.main_comp])
+        e_sep = self.main_comp[agmax]
         '''end of v4.4 init separator'''
         
         '''v4.5 init separator'''
-        e_sep = np.argmax(self.valencies)
+#        e_sep = np.argmax(self.valencies)
         '''end of v4.5 init separator'''
         
         
@@ -385,10 +387,19 @@ class elimination_ordering_class:
 #        print(e_sep, self.valencies[78], self.valencies[261], e_sep in self.comp_stack[-1])
         
         conn_comps = distances #list o connected components from e
-        gamma_cc = set(conn_comps)
-        print(gamma_cc)
-        d = int(d)
         
+        '''stack v4.4.1:'''
+        head = set(conn_comps)
+        main = set(self.main_comp)
+        tail = main - head #determine the tail set
+        self.main_comp = list(head) #reset main component by the list of nodes of the head
+        list_tail = list(tail)
+        if list_tail:
+            self.comp_stack.append(list_tail)
+        '''end of stack v4.4.1'''
+        
+        d = int(d)
+
         #4, get the N_k, n_k from e, 0<=k<=d, d=max distance, k \in Z:
         '''fill all N and n:'''
         N = []
@@ -538,48 +549,63 @@ class elimination_ordering_class:
             self.len_conn.append(len(conn_comps))
         
         '''post separate: get connected components'''
-        prev_top = set(self.comp_stack.pop()) #pop the top
-#        prev_top = self.comp_stack.pop()
-#        prev_top = prev_top.intersection(set(self.graph.nodes)) #actual prev_top, excluding deleted nodes
-#        self.stack_tracker.pop() #
-        
-        #10, determine the main connected components from the e node using DFS/BFS:
-        main_c = list(nx.dfs_preorder_nodes(self.graph, e_sep))
-        #11, determine the complement which was separated from e node:
-        complement = set(conn_comps) - set(main_c + N[k])
-        #12, determine the residual components which may contain more than one subgraphs:
-        '''new stack mechanism'''
-#        residual = set(prev_top) - set(self.norm_deleted+list(conn_comps)) # residual = the previous whole element - (deleted nodes in normalization + current connected components)
-#        print("residual",residual)
-        '''end of new stack mechanism'''
-#        residual = set(self.graph.nodes) - set(conn_comps) #leftover after normalization, in grid's case, this is {}
-        residual = prev_top - set(conn_comps)#leftover after normalization, in grid's case, this is {}
-        
-#        print("\nmain_c",sorted(main_c))
-#        print("second",sorted(complement))
-#        print("residual",sorted(residual))
-        
-        
-        #13, fill the stack:
-        '''new stack mechanism'''
-        if residual:
-            self.comp_stack.append(sorted(residual))
-#            self.stack_tracker.append("res") #
-        self.comp_stack.append(sorted(complement))
-        self.comp_stack.append(sorted(main_c)) #main component must be on top
-#        self.stack_tracker.append("second") #
-#        self.stack_tracker.append("main") #
-        '''end of new stack mechanism'''
+#        prev_top = set(self.comp_stack.pop()) #pop the top
+#        
+#        #10, determine the main connected components from the e node using DFS/BFS:
+#        main_c = list(nx.dfs_preorder_nodes(self.graph, e_sep))
+#        #11, determine the complement which was separated from e node:
+#        complement = set(conn_comps) - set(main_c + N[k])
+#        #12, determine the residual components which may contain more than one subgraphs:
+#
+##        residual = set(self.graph.nodes) - set(conn_comps) #leftover after normalization, in grid's case, this is {}
+#        residual = prev_top - set(conn_comps)#leftover after normalization, in grid's case, this is {}
+#        
+#        #13, fill the stack:
+#        '''new stack mechanism'''
 #        if residual:
-#            self.comp_stack = [sorted(residual), sorted(complement), sorted(main_c)] #the top element must always be the main component
-#        else:
-#            self.comp_stack = [sorted(complement), sorted(main_c)]
+#            self.comp_stack.append(sorted(residual))
+#        self.comp_stack.append(sorted(complement))
+#        self.comp_stack.append(sorted(main_c)) #main component must be on top
+
+        '''end of new stack mechanism'''
+        
+
+        
+        
         '''end of post-separate'''
+        
     '''end of separate stage'''
     
     '''elimination ordering specialized for component processing (v4)'''
+    def elimination_ordering(self):
+        
+        while self.graph.number_of_nodes() > 0:
+            
+            if self.graph.number_of_nodes() == 0: #if the graph is empty, break
+                break
+            self.normalize() #do normalize stage
+            if self.graph.number_of_nodes() == 0:
+                break
+            
+            if self.n == 0:
+                self.main_comp = self.comp_stack.pop()
+            else:
+                self.separate()
+                
+#            while np.all(self.deleted[self.main_comp]) == True:
+#                self.main_comp = self.comp_stack.pop()
+#                
+            # deletes some elements of the stack elements which are already deleted
+            if np.any(self.deleted[self.main_comp]): #check for if the stack contains some deleted value:
+                self.n = len(np.where(self.deleted[self.main_comp] == False)[0])
+            else:
+                self.n = len(self.main_comp) #reset n with the length of the top element of the stack
+            
+            self.round += 1 #increment round, although the rounds are not so relevant anymore within this scheme
+            
+            
     #stage organizer, utilizing comp_stack as stack:
-    def elimination_ordering(self): 
+    def elimination_ordering_old(self): 
         while self.graph.number_of_nodes() > 0: 
             if self.graph.number_of_nodes() == 0: #if the graph is empty, break
                 break
@@ -947,7 +973,7 @@ if __name__ == "__main__":
     #import pprofile
     
     '''elimination order tests'''
-    p=8;q=8  #grid size
+    p=256;q=256  #grid size
     grid = grid_generator(p,q) #generate the grid
     start = time.time() #timer start
     eonx = elimination_ordering_class(grid, visualization=False, r0_verbose=False, p=p, q=q) #initialize object from the elimination_ordering_class
