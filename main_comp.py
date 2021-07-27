@@ -254,6 +254,6 @@ def computation_independent(n=10,filename="grid_p=q_algo4.3_25062021_k10.p"):
 if __name__ == '__main__':
     #generate_iperm()
     #computation()
-    computation_independent(8, "grid_p=q_algo4.5_26072021_k8.p")
+    computation_independent(8, "grid_p=q_algo4.3.1_27072021_k8.p")
     #visu()
     #testnewtoken2
