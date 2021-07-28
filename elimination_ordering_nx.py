@@ -104,6 +104,7 @@ class elimination_ordering_class:
             self.R_strings.append("++++ Normalization Stage ++++") #print this only if normalize is not empty
         looked_counter = 0 #set the counter which counts the number of looked vertices within this stage
         left_counter = self.n #set the counter which counts the number of vertices left to be looked
+        max_valency = np.max(self.valencies) #constant max valency throughout the iteration
         '''for randomized version:'''
 #        np.random.seed(42) #set the random seed
 #        rand_top = np.random.permutation(self.comp_stack[-1])
@@ -141,8 +142,8 @@ class elimination_ordering_class:
                     self.vertex_placement(i, 1, valency, neighbours, len_neighbours, "last") #place last
                     self.post_placement(i, neighbours, len_neighbours) #post-placement function
                     left_counter -= 1; looked_counter = 0 #decrement left_counter, set looked_counter as 0, each time placement happens to a node
-                elif (valency > np.ceil(self.n/2)) and (valency == np.max(self.valencies)): #Rule 2
-#                elif (valency > np.ceil(self.n/2)) and (valency == self.max_valency): #Rule 2
+#                elif (valency > np.ceil(self.n/2)) and (valency == np.max(self.valencies)): #Rule 2, non-constant max valency
+                elif (valency > np.ceil(self.n/2)) and (valency == max_valency): #Rule 2
                     if self.visu:
                         self.global_counter += len(self.valencies)
                     self.vertex_placement(i, 2, valency, neighbours, len_neighbours, "last")
@@ -631,7 +632,15 @@ class elimination_ordering_class:
     '''elimination ordering specialized for component processing (v4)'''
     def elimination_ordering(self):
         
+        #temporary visu rule:
+        if self.visu:
+            separate_count = 0
+        
         while self.graph.number_of_nodes() > 0:
+            
+            if self.visu:
+                if separate_count == 2:
+                    break
             
             if self.graph.number_of_nodes() == 0: #if the graph is empty, break
                 break
@@ -659,6 +668,9 @@ class elimination_ordering_class:
                         
             else:
                 self.separate()
+                
+                if self.visu:
+                    separate_count += 1
                 
                 if self.visu:
                     '''get the stack info:'''
